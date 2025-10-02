@@ -1,0 +1,5 @@
+APP=app1
+
+oc delete deployments.apps $APP
+oc delete services $APP
+oc delete buildconfigs.build.openshift.io $APP
