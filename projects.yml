@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system
+...
+
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: anycast-shared-gateway
+...
+
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello-app
+...
