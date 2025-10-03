@@ -2,6 +2,6 @@ FROM python:alpine
 
 COPY index.html /
 
-EXPOSE 80
+EXPOSE 8080
 
-CMD python -m http.server 80
+CMD python -m http.server 8080

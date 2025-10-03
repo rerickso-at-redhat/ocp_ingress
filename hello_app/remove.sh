@@ -1,4 +1,4 @@
-APP=hello_app
+APP=$(cat APP_NAME)
 
 oc delete deployments.apps $APP
 oc delete services $APP
