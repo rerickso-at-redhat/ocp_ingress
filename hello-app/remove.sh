@@ -1,7 +1,7 @@
-APP=$(cat APP_NAME)
+APP_NAME=$1
 
-oc project hello-app
+oc project $APP_NAME
 
-oc delete deployments.apps $APP
-oc delete services $APP
-oc delete buildconfigs.build.openshift.io $APP
+oc delete deployments.apps $APP_NAME
+oc delete services $APP_NAME
+oc delete buildconfigs.build.openshift.io $APP_NAME
