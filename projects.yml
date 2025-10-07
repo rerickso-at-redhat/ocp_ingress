@@ -1,3 +1,4 @@
+# MetalLB Default Namespace
 ---
 apiVersion: v1
 kind: Namespace
@@ -5,7 +6,7 @@ metadata:
   name: metallb-system
 ...
 
-
+# Shared Anycast Namespace
 ---
 apiVersion: v1
 kind: Namespace
@@ -13,10 +14,19 @@ metadata:
   name: anycast-shared-gateway
 ...
 
-
+# app1 will live on cluster1 but be accessible from both clusters
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: hello-app
+  name: app1
 ...
+
+# app2 will live on cluster2 but be accessible from both clusters
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app2
+...
+
