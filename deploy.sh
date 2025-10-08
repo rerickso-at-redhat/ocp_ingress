@@ -68,31 +68,30 @@ cd ..
 ## Cluster A
 oc login --server=$CLUSTERA || oc login --web --server=$CLUSTERA
 
-### App 1
+### App 1 (incoming links from remotes sites to app1)
 skupper --namespace app1 site create --enable-link-access app1
-skupper --namespace app1 token issue app1-token.yml
 skupper --namespace app1 connector create app1 8080 --workload deployment/app1
+skupper --namespace app1 token issue app1-token.yml
 
-### App 2
-skupper --namespace app2 site create --enable-link-access app2
-
+### App 2 (outgoing links to app2)
+skupper --namespace app2 site create app2
 
 ## Cluster B
 oc login --server=$CLUSTERB || oc login --web --server=$CLUSTERB
 
-### App 1
-skupper --namespace app1 site create --enable-link-access app1
-skupper --namespace app1 token redeem app2-token.yml
+### App 1 (outgoing links to app1)
+skupper --namespace app1 site create app1
+skupper --namespace app1 token redeem app1-token.yml
+skupper --namespace app1 listener create app1 8080
 
-### App 2
+### App 2 (incoming links from remote sites to app2)
 skupper --namespace app2 site create --enable-link-access app2
-skupper --namespace app2 token issue app2-token.yml
 skupper --namespace app2 connector create app2 8080 --workload deployment/app2
-
+skupper --namespace app2 token issue app2-token.yml
 
 ## Cluster A
 oc login --server=$CLUSTERA || oc login --web --server=$CLUSTERA
 
-### App 2
+### App 2 (outgoing links to app2)
 skupper --namespace app2 token redeem app2-token.yml
-
+skupper --namespace app2 listener create app2 8080
