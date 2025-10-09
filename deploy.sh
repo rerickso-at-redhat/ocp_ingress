@@ -20,7 +20,7 @@ echo "Using Cluster A"
 oc config use-context #CLUSTERA_CONTEXT 
 
 ## Namespaces
-oc apply -f projects.yml
+oc apply -f namespaces.yml
 
 ## App 1
 cd hello-app
@@ -66,7 +66,7 @@ cd ..
 oc config use-context $CLUSTERB_CONTEXT
 
 ## Namespaces
-oc apply -f projects.yml
+oc apply -f namespaces.yml
 
 ## App 2
 cd hello-app
