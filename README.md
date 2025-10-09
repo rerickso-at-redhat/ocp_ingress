@@ -1,6 +1,18 @@
 # Installation
 
-## Update the deploy.yml file with your clustera/clusterb API URLs
+## Update deploy.sh
+
+Update the deploy.sh file with your clustera/clusterv API URLs
+
+```cat deploy.sh 
+#!/bin/bash
+
+CLUSTERA="api.cluster-p29md.dynamic.redhatworkshops.io:6443"
+CLUSTERB="api.cluster-xm972.dynamic.redhatworkshops.io:6443"
+
+...
+
+```
 
 ## Ensure that you have the following prerequsites installed
 
