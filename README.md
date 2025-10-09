@@ -7,8 +7,8 @@ Update the deploy.sh file with your clustera/clusterv API URLs
 ```cat deploy.sh 
 #!/bin/bash
 
-CLUSTERA="api.cluster-p29md.dynamic.redhatworkshops.io:6443"
-CLUSTERB="api.cluster-xm972.dynamic.redhatworkshops.io:6443"
+CLUSTERA="api.cluster-a.example.io:6443"
+CLUSTERB="api.cluster-b.example.io:6443"
 
 ...
 
@@ -25,7 +25,7 @@ CLUSTERB="api.cluster-xm972.dynamic.redhatworkshops.io:6443"
 - Direct Link: https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=redhat.service.interconnect
 
 ## Run the deploy.sh script
-./deploy.sh
+`./deploy.sh`
 
 # Documentation Links
 
