@@ -1,9 +1,10 @@
 #!/bin/bash
 
-CLUSTERA="https://api.cluster-275lg.dynamic.redhatworkshops.io:6443"
-CLUSTERB="https://api.cluster-xm972.dynamic.redhatworkshops.io:6443"
-CLUSTERA_CONTEXT="default/$CLUSTERA/admin" # Highly assumptive - demo purposes only
-CLUSTERB_CONTEXT="default/$CLUSTERB/admin" # Highly assumptive - demo purposes only
+#CLUSTERA="https://api.cluster-275lg.dynamic.redhatworkshops.io:6443"
+CLUSTERA="api.cluster-p29md.dynamic.redhatworkshops.io:6443"
+CLUSTERB="api.cluster-xm972.dynamic.redhatworkshops.io:6443"
+CLUSTERA_CONTEXT="default/$(echo $CLUSTERA | sed s/\\./-/g)/admin" # Highly assumptive - demo purposes only
+CLUSTERB_CONTEXT="default/$(echo $CLUSTERB | sed s/\\./-/g)/admin" # Highly assumptive - demo purposes only
 
 
 set -ex
@@ -17,7 +18,7 @@ oc login --web --server=$CLUSTERB
 # Cluster A
 
 echo "Using Cluster A"
-oc config use-context #CLUSTERA_CONTEXT 
+oc config use-context $CLUSTERA_CONTEXT 
 
 ## Namespaces
 oc apply -f namespaces.yml
@@ -36,7 +37,9 @@ cd clustera
 echo "NOTE: IP failover *MUST* be disabled before installing the MetalLB Operator..."
 echo "      (Operator Install)    https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator#metallb-operator-install"
 echo "      (IP failover removal) https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/configuring_network_settings/index#nw-ipfailover-remove_configuring-ipfailover"
-oc apply -f 10-metal-operator.yaml
+oc apply -f 10-metallb-operator.yml
+# TODO: The wait happens so fast the operator isnt even initializing yet so --all just includes preexisting ones. Additionally, wasnt able to initially find a way to get just the single operator as the name is dynamic. Needs work.
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 echo "NOTE: The MetalLB Operator *MUST* be installed to proceed..."
 #### The MetalLB namespace *MUST* have the cluster-monitoring label for BGP/BFD metrics to appear in Prometheus...
@@ -48,12 +51,17 @@ oc apply -f 18-metallb-bgpadvertisement.yml
 ### Gateway API (https://gateway-api.sigs.k8s.io/)
 echo "NOTE: The cluster *MUST* have \"GatewayClass\" available (GA in OCP 4.19+) to proceed..."
 oc apply -f 30-gateway-gatewayclass.yml 
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 oc apply -f 32-gateway-gateway.yml
 oc apply -f 34-gateway-httproute-app1.yml
 oc apply -f 36-gateway-httproute-app2.yml
 ### Red Hat Service Interconnect (https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1)
+# TODO: the latest rhsi seems to need the latest service mesh so it doesnt install automatically and instead creates an install plan
+# Probably need to downgrade skupper or manually install service mesh before skupper (vs automatic with GatewayClass)
+# Review the manual install plan for operators servicemeshoperator3.v3.1.2, skupper-operator.v2.1.1-rh-3. Once approved, the following resources will be created in order to satisfy the requirements for the components specified in the plan. Click the resource name to view the resource in detail.
 oc apply -f 50-skupper-operator.yml
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 echo "NOTE: The Red Hat Service Interconnect Operator *MUST* be installed to proceed..."
 oc apply -f 52-skupper-app1.yml
@@ -82,7 +90,9 @@ cd clusterb
 echo "NOTE: IP failover *MUST* be disabled before installing the MetalLB Operator..."
 echo "      (Operator Install)    https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator#metallb-operator-install"
 echo "      (IP failover removal) https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/configuring_network_settings/index#nw-ipfailover-remove_configuring-ipfailover"
-oc apply -f 10-metal-operator.yaml
+oc apply -f 10-metallb-operator.yml
+# TODO: The wait happens so fast the operator isnt even initializing yet so --all just includes preexisting ones. Additionally, wasnt able to initially find a way to get just the single operator as the name is dynamic. Needs work.
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 echo "NOTE: The MetalLB Operator *MUST* be installed to proceed..."
 #### The MetalLB namespace *MUST* have the cluster-monitoring label for BGP/BFD metrics to appear in Prometheus...
@@ -94,12 +104,17 @@ oc apply -f 18-metallb-bgpadvertisement.yml
 ### Gateway API (https://gateway-api.sigs.k8s.io/)
 echo "NOTE: The cluster *MUST* have \"GatewayClass\" available (GA in OCP 4.19+) to proceed..."
 oc apply -f 30-gateway-gatewayclass.yml
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 oc apply -f 32-gateway-gateway.yml
 oc apply -f 34-gateway-httproute-app1.yml
 oc apply -f 36-gateway-httproute-app2.yml
 ### Red Hat Service Interconnect (https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1)
+# TODO: the latest rhsi seems to need the latest service mesh so it doesnt install automatically and instead creates an install plan
+# Probably need to downgrade skupper or manually install service mesh before skupper (vs automatic with GatewayClass)
+# Review the manual install plan for operators servicemeshoperator3.v3.1.2, skupper-operator.v2.1.1-rh-3. Once approved, the following resources will be created in order to satisfy the requirements for the components specified in the plan. Click the resource name to view the resource in detail.
 oc apply -f 50-skupper-operator.yml
+sleep 5
 oc wait clusterserviceversions --all --for=jsonpath='{.status.phase}=Succeeded'
 echo "NOTE: The Red Hat Service Interconnect Operator *MUST* be installed to proceed..."
 oc apply -f 52-skupper-app1.yml
