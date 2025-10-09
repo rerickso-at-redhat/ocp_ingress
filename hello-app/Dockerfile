@@ -1,7 +1,9 @@
 FROM python:alpine
 
-COPY index.html /
+ARG app_name=hello-app
+
+RUN printf "<html><head><title>Hello-App</title></head><body><h1>Hello-App</h1><p>Hello from $app_name!</p></body></html>" > index.html
 
 EXPOSE 8080
 
-CMD echo "Brought to you by: $(hostname)" >> index.html && python -m http.server 8080
+CMD python -m http.server 8080

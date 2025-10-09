@@ -9,3 +9,5 @@ oc new-app \
 	--strategy=docker \
 	--context-dir=hello-app \
 	--name=$APP_NAME
+
+oc start-build --from-build=$APP_NAME-1 --build-arg app_name=$APP_NAME
