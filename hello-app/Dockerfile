@@ -1,4 +1,4 @@
-FROM docker.io/library/python:alpine
+FROM registry.redhat.io/rhel9/python-312:latest
 
 ARG app_name=hello-app
 
