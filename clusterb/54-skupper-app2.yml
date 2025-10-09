@@ -1,0 +1,25 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: app2
+  namespace: app2
+spec:
+  enable: true
+  linkAccess: default
+...
+
+---
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  generation: 1
+  name: app2
+  namespace: app2
+spec:
+  port: 8080
+  routingKey: app2
+  selector: deployment=app2
+  type: tcp
+...
+
