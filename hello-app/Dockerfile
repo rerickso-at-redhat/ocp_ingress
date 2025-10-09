@@ -1,4 +1,4 @@
-FROM python:alpine
+FROM docker.io/library/python:alpine
 
 ARG app_name=hello-app
 
