@@ -36,7 +36,9 @@ https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/
 
 ### Gateway API
 The Gateway API is built into OCP 4.19+
+
 Creating a GatewayClass CRD will silently bootstrap the Gateway API to allow GatewayClass/Gateway/HTTPRoute objects to be created.
+https://docs.okd.io/latest/networking/ingress_load_balancing/configuring_ingress_cluster_traffic/ingress-gateway-api.html
 
 https://gateway-api.sigs.k8s.io/
 
