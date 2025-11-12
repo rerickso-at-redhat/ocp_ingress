@@ -1,0 +1,327 @@
+---
+- name: "Deploy Multi Cluster OCP UPI Components"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - "vars.yml"
+  collections:
+    - custom_aws.ec2
+  tasks:
+    - name: Initialize VPC
+      register: res_vpcs
+      loop: "{{ vpcs }}"
+      amazon.aws.ec2_vpc_net:
+        name: "{{ item.name }}"
+        cidr_block: "{{ item.cidr }}"
+        region: "{{ primary_region }}"
+        tenancy: default
+        # Explicit Defaults
+        dns_support: true
+        dns_hostnames: true
+        multi_ok: false
+
+    - name: "Initialize A VPC Internet Gateway in vpcs[0] - ({{ vpcs[0].name }})"
+      register: res_igw
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ res_vpcs.results[0].vpc.id }}" # NOTE: hard coded 0 - watch ordering on "vpcs" variable
+        tags:
+          Name: "tor-igw"
+
+    # TODO: Optimize the three module calls into one
+
+    - name: Initialize First VPC Subnets
+      loop: "{{ vpcs[0].subnets }}"
+      register: res_subnets_0
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ res_vpcs.results[0].vpc.id }}"
+        az: "{{ item.az }}"
+        cidr: "{{ item.cidr }}"
+        tags:
+          Name: "{{ item.name }}"
+
+    - name: Initialize Second VPC Subnets
+      loop: "{{ vpcs[1].subnets }}"
+      register: res_subnets_1
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ res_vpcs.results[1].vpc.id }}"
+        az: "{{ item.az }}"
+        cidr: "{{ item.cidr }}"
+        tags:
+          Name: "{{ item.name }}"
+
+    - name: Initialize Third VPC Subnets
+      loop: "{{ vpcs[2].subnets }}"
+      register: res_subnets_2
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ res_vpcs.results[2].vpc.id }}"
+        az: "{{ item.az }}"
+        cidr: "{{ item.cidr }}"
+        tags:
+          Name: "{{ item.name }}"
+
+    - name: Initialize the Transit Gateway
+      register: res_tgw
+      amazon.aws.ec2_transit_gateway:
+        description: Gateway between the alpha cluster, beta cluster, and internet
+        region: "{{ primary_region }}"
+        wait: true
+        auto_associate: false
+        auto_propagate: false
+        #dns_support: true
+        #multicast_support: false
+        tags:
+          Name: "tgw-tor-{{ primary_region }}"
+ 
+    - name: Save the Transit Gateway ID
+      set_fact:
+        transit_gateway_id: "{{ res_tgw.transit_gateway.transit_gateway_id }}"
+
+    # TODO: optimize triple module use based on how subnets end up testing out
+
+    - name: Compile the 'tgwa-tor' TGW Attachment Facts
+      ansible.builtin.set_fact:
+        tgwa_tor:
+          name: tgwa-tor
+          subnets: "{{ res_subnets_0.results | selectattr('subnet.tags.Name', 'search', '.*-tgw-.*') | map(attribute='subnet.id') }}"
+          appliance_mode_support: true
+
+    - name: Compile the 'tgwa-alpha' TGW Attachment Facts
+      ansible.builtin.set_fact:
+        tgwa_alpha:
+          name: tgwa-alpha
+          subnets: "{{ res_subnets_1.results | selectattr('subnet.tags.Name', 'search', '.*-tgw-.*') | map(attribute='subnet.id') }}"
+          appliance_mode_support: false
+
+    - name: Compile the 'tgwa-beta' TGW Attachment Facts
+      ansible.builtin.set_fact:
+        tgwa_beta:
+          name: tgwa-beta
+          subnets: "{{ res_subnets_2.results | selectattr('subnet.tags.Name', 'search', '.*-tgw-.*') | map(attribute='subnet.id') }}"
+          appliance_mode_support: false
+
+    - name: "Initialize Transit Gateway Route Table: tgw-rt-internal"
+      vars:
+        tgw_rt_name: "tgw-rt-internal"
+        tgw_id: "{{ transit_gateway_id }}"
+      import_role:
+        name: custom_aws.ec2.transit_gateway_route_table
+
+    - name: "Initialize Transit Gateway Route Table: tgw-rt-external"
+      vars:
+        tgw_rt_name: "tgw-rt-external"
+        tgw_id: "{{ transit_gateway_id }}"
+      import_role:
+        name: custom_aws.ec2.transit_gateway_route_table
+
+
+    - debug:
+        var: custom_aws_ec2_transit_gateway_route_table
+
+      # transit_gateway_id
+      # tga ids to associate
+      ## internal 
+      # associations:
+      # tgwa-alpha
+      # tgwa-beta
+      # routes:
+      # 10.0.0.0/8 black
+      # 172.16.0.0/12 black
+      # 192.168.0.0/16 black
+      # 0/0 to tgw-attach-id
+      #
+      ## external:
+      # associations:
+      # tgwa-tor
+      # routes:
+      # 10.1 -> tgwa-alpha
+      # 10.2 -> tgwa-beta
+
+    - fail:
+        msg: stop
+
+    - name: Display Transit Gateway Attachment Facts
+      loop:
+      - tgwa_tor
+      - tgwa_alpha
+      - tgwa_beta
+      ansible.builtin.debug:
+          var: "{{ item }}"
+
+    - name: Initialize the Transit Gateway Attachments
+      loop:
+        - "{{ tgwa_tor }}"
+        - "{{ tgwa_alpha }}"
+        - "{{ tgwa_beta }}"
+      register: res_tgwas
+      amazon.aws.ec2_transit_gateway_vpc_attachment:
+        name: "{{ item.name }}"
+        transit_gateway: "{{ transit_gateway_id }}"
+        appliance_mode_support: "{{ item.appliance_mode_support }}"
+        #dns_support: true
+        subnets: "{{ item.subnets }}"
+        wait: true
+        tags:
+          Name: "{{ item.name }}"
+
+
+
+    # Create a NAT Gateway for each availability zone
+    # NOTE: AWS accounts are normally limited to 5 elastic ip addresses
+    - name: Initialize VPC NAT Gateways (cluster a private subnets)
+      loop: "{{ vpcs[0].subnets }}" # NOTE: hard coded 0 for tor vpc - watch order in vpcs
+      when: "'subnet-tor-public-' in item.name"
+      register: res_ngws
+      amazon.aws.ec2_vpc_nat_gateway:
+        connectivity_type: "public"
+        subnet_id: "{{ (res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id'] }}"
+        if_exist_do_not_create: true
+        wait: true
+        tags:
+          Name: "{{ item.name | regex_replace('subnet-', 'ngw-') }}"
+
+    - name: Name the Elastic IPs
+      loop: "{{ res_ngws['results'] }}"
+      when: "item['nat_gateway_addresses'][0]['public_ip'] is defined"
+      amazon.aws.ec2_eip:
+        public_ip: "{{ item['nat_gateway_addresses'][0]['public_ip'] }}"
+        tags:
+          Name: "{{ item['item']['name'] | regex_replace('subnet-', 'eip-') }}"
+
+    - debug:
+        var: res_tgwas
+
+    - fail:
+        msg: stop
+
+    # The default ocp installer seems to set up the following routes:
+    # Private: 0/0 to NAT, prefix list to VPCE
+    # Public: 0/0 to IGW, prefix list to VPCE
+    # TODO: need a nat gateway for each private subnet (name, subnet, Public type)
+    - name: Initialize VPC Route Tables (vpc-tor)
+      amazon.aws.ec2_vpc_route_table:
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: 
+
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw_hunt_igw.gateway_id }}"
+        tags:
+          Name: "{{ item.name | regex_replace('subnet', 'routetable') }}"
+
+    - fail:
+        msg: stop
+
+    - name: Initialize the public-facing-vms security group
+      register: sg_public_facing_vms
+      amazon.aws.ec2_security_group:
+        name: "public-facing-vms"
+        description: "Public facing VMs that need SSH access"
+        vpc_id: "{{ vpc_hunt_vpc.id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: "0.0.0.0/0"
+
+    # TODO: add test instances (alpha, beta, tor)
+
+    - name: Initialize the bastion ec2 instance
+      amazon.aws.ec2_instance:
+        name: "bastion"
+        key_name: "bgp-router-ssh-key"
+        vpc_subnet_id: subnet-07ed770aa110d5348 # demo-subnet-public1-us-east-2a
+        instance_type: t2.small
+        security_group: public-facing-vms # ID would be: "{{ sg_public_facing_vms['group_id'] }}"
+        image_id: ami-0912d5cf1d5dff99c # RHEL 10
+        network_interfaces:
+          - assign_public_ip: true
+
+    # TODO: Gather subnet id by lookup and parameterize it
+    # TODO: Any additional networking needs re: bgp, etc
+    # TODO (long term): Deploy 3 routers, one for each AZ/IG?
+    # TODO (long term): The bastion should probably be the only one with external access, change the security group
+    - name: Initialize the bgp-router ec2 instance
+      register: ec2_router_bgp
+      amazon.aws.ec2_instance:
+        name: "router-bgp"
+        key_name: "bgp-router-ssh-key"
+        vpc_subnet_id: subnet-07ed770aa110d5348 # demo-subnet-public1-us-east-2a
+        instance_type: t2.medium
+        security_group: public-facing-vms
+        image_id: ami-0912d5cf1d5dff99c # RHEL 10
+        network_interfaces:
+          - assign_public_ip: true
+
+    - name: "Debug router-bgp Result When Requested (-vv)"
+      ansible.builtin.debug:
+        var: ec2_router_bgp
+        verbosity: 2
+
+    - name: "Add the AWS host to the Ansible Inventory"
+      ansible.builtin.add_host:
+        hostname: "bgp-router"
+        groups:
+          - "bgp"
+        ansible_ssh_host: "{{ ec2_router_bgp.instances[0].network_interfaces[0].association.public_dns_name }}"
+        ansible_ssh_port: 22
+        ansible_host_key_checking: false
+        ansible_user: "ec2-user"
+        ansible_ssh_private_key_file: "~/.ssh/bgp-router-ssh-key.pem"
+        aws_private_dns_name: "{{ ec2_router_bgp.instances[0].network_interfaces[0].private_dns_name }}"
+
+- name: "Configure the BGP Router VM"
+  hosts: bgp
+  gather_facts: false
+  become: true
+  tasks:
+    # TODO: Improve this, it hangs
+    - name: "Wait For SSH Connectivity"
+      ansible.builtin.wait_for_connection:
+
+    - name: "Install FRR"
+      ansible.builtin.dnf:
+        name: frr
+        state: present
+
+    - name: "Configure FRR Daemons"
+      ansible.builtin.lineinfile:
+        path: /etc/frr/daemons
+        search_string: "bgpd=no"
+        line: "bgpd=yes"
+
+    # TODO: Create correct BGP configuration for the AWS Demo
+    - name: "Configure FRR"
+      ansible.builtin.copy:
+        owner: frr
+        group: frr
+        mode: "u=rw,g=r,o="
+        dest: /etc/frr/frr.conf
+        content: |
+            hostname {{ aws_private_dns_name }}
+            ip prefix-list ACCEPT_LAB seq 5 permit 10.88.0.0/24 le 32
+            ip prefix-list ACCEPT_LAB seq 10 permit 192.168.0.0/16 le 32
+            !
+            router bgp 65000
+             bgp router-id 10.99.0.1
+             bgp bestpath as-path multipath-relax
+             neighbor 10.0.101.201 remote-as 65001
+             neighbor 10.0.101.201 shutdown
+             neighbor 10.0.102.201 remote-as 65002
+             !
+             address-family ipv4 unicast
+              neighbor 10.0.101.201 soft-reconfiguration inbound
+              neighbor 10.0.101.201 route-map ACCEPT_LAB in
+              neighbor 10.0.102.201 route-map ACCEPT_LAB in
+              maximum-paths 4
+             exit-address-family
+            exit
+            !
+            route-map ACCEPT_LAB permit 10
+             match ip address prefix-list ACCEPT_LAB
+            exit
+
+    - name: "Enable and Restart the FRR Service"
+      ansible.builtin.service:
+        name: frr
+        enabled: true
+        state: restarted

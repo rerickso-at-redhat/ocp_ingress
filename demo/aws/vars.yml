@@ -1,0 +1,106 @@
+---
+primary_region: "us-east-2"
+vpcs:
+  - name: "vpc-tor"
+    cidr: 10.0.0.0/16
+    subnets:
+      # TOR (Supernet: 10.0.0.0/16)
+      ## Privates - Routers/Misc (Supernet: 10.0.0.0/17)
+      - name: subnet-tor-private-us-east-2a
+        cidr: 10.0.0.0/24
+        az: us-east-2a
+      - name: subnet-tor-private-us-east-2b
+        cidr: 10.0.1.0/24
+        az: us-east-2b
+      - name: subnet-tor-private-us-east-2c
+        cidr: 10.0.2.0/24
+        az: us-east-2c
+      ### FREE SPACE (Privates): 10.0.3.0/24 - 10.0.127.0/24
+      #
+      ## Publics (Supernet: 10.0.128.0/17)
+      ### TGW Attachments (Supernet: 10.0.128.0/21)
+      - name: subnet-tor-tgw-us-east-2a
+        cidr: 10.0.128.0/24
+        az: us-east-2a
+      - name: subnet-tor-tgw-us-east-2b
+        cidr: 10.0.129.0/24
+        az: us-east-2b
+      - name: subnet-tor-tgw-us-east-2c
+        cidr: 10.0.130.0/24
+        az: us-east-2c
+      #### FREE SPACE (TGWAs): 10.0.131.0/24 - 10.0.135.0/24
+      #### FREE SPACE (TGWAs): 10.0.136.0/21
+      #### FREE SPACE (TGWAs): 10.0.144.0/21
+      #### FREE SPACE (TGWAs): 10.0.152.0/21
+      #
+      ### Services - NAT, Bastions, etc (Supernet: 10.0.160.0/19)
+      - name: subnet-tor-public-us-east-2a
+        cidr: 10.0.160.0/21
+        az: us-east-2a
+      - name: subnet-tor-public-us-east-2b
+        cidr: 10.0.168.0/21
+        az: us-east-2b
+      - name: subnet-tor-public-us-east-2c
+        cidr: 10.0.176.0/21
+        az: us-east-2c
+      - name: subnet-tor-public-bastions-us-east-2a
+        cidr: 10.0.184.0/21
+        az: us-east-2a
+      # FREE SPACE: 10.0.192.0 - 10.0.254.254
+
+  - name: "vpc-cluster-alpha"
+    cidr: 10.1.0.0/16
+    subnets:
+      # Cluster Alpha (Supernet: 10.1.0.0/16)
+      ## Privates (Supernet: 10.1.0.0/17)
+      - name: subnet-alpha-private-machine-us-east-2a
+        cidr: 10.1.0.0/19
+        az: us-east-2a
+      - name: subnet-alpha-private-machine-us-east-2b
+        cidr: 10.1.32.0/19 
+        az: us-east-2b
+      - name: subnet-alpha-private-machine-us-east-2c
+        cidr: 10.1.64.0/19
+        az: us-east-2c
+      ### FREE SPACE (Privates): 10.1.96.0/19
+      ## TGW Attachments (Supernet: 10.1.128.0/22) 
+      - name: subnet-alpha-tgw-us-east-2a
+        cidr: 10.1.128.0/24
+        az: us-east-2a
+      - name: subnet-alpha-tgw-us-east-2b
+        cidr: 10.1.129.0/24
+        az: us-east-2b
+      - name: subnet-alpha-tgw-us-east-2c
+        cidr: 10.1.130.0/24
+        az: us-east-2c
+      # FREE SPACE (TGWAs): 10.1.131.0/24
+      # FREE SPACE: 10.1.132.0 - 10.1.254.254
+
+  - name: "vpc-cluster-beta"
+    cidr: 10.2.0.0/16
+    subnets:
+      # Cluster Beta (Supernet: 10.2.0.0/16)
+      ## Privates (Supernet: 10.2.0.0/17)
+      - name: subnet-beta-private-machine-us-east-2a
+        cidr: 10.2.0.0/19
+        az: us-east-2a
+      - name: subnet-beta-private-machine-us-east-2b
+        cidr: 10.2.32.0/19
+        az: us-east-2b
+      - name: subnet-beta-private-machine-us-east-2c
+        cidr: 10.2.64.0/19
+        az: us-east-2c
+      # FREE SPACE (Privates): 10.2.96.0/19
+      # TGW Attachments (Supernet: 10.2.128.0/22)
+      - name: subnet-beta-tgw-us-east-2a
+        cidr: 10.2.128.0/24
+        az: us-east-2a
+      - name: subnet-beta-tgw-us-east-2b
+        cidr: 10.2.129.0/24
+        az: us-east-2b
+      - name: subnet-beta-tgw-us-east-2c
+        cidr: 10.2.130.0/24
+        az: us-east-2c
+      # FREE SPACE (TGWAs): 10.2.131.0/24
+      # FREE SPACE: 10.2.132.0 - 10.2.254.254
+
