@@ -65,6 +65,7 @@
         description: Gateway between the alpha cluster, beta cluster, and internet
         region: "{{ primary_region }}"
         wait: true
+        # TODO: if it doesnt come up right this is probably the reason
         auto_associate: false
         auto_propagate: false
         #dns_support: true
@@ -103,18 +104,18 @@
       vars:
         tgw_rt_name: "tgw-rt-internal"
         tgw_id: "{{ transit_gateway_id }}"
-      import_role:
+      include_role:
         name: custom_aws.ec2.transit_gateway_route_table
 
     - name: "Initialize Transit Gateway Route Table: tgw-rt-external"
       vars:
         tgw_rt_name: "tgw-rt-external"
         tgw_id: "{{ transit_gateway_id }}"
-      import_role:
+      include_role:
         name: custom_aws.ec2.transit_gateway_route_table
 
-
-    - debug:
+    - name: "Display Transit Gateway Route Table Facts"
+      debug:
         var: custom_aws_ec2_transit_gateway_route_table
 
       # transit_gateway_id
@@ -135,9 +136,6 @@
       # routes:
       # 10.1 -> tgwa-alpha
       # 10.2 -> tgwa-beta
-
-    - fail:
-        msg: stop
 
     - name: Display Transit Gateway Attachment Facts
       loop:
@@ -163,7 +161,89 @@
         tags:
           Name: "{{ item.name }}"
 
+    - name: "Compile the TGW Route Table and Attachment IDs"
+      ansible.builtin.set_fact:
+        tgw_rt_id_internal: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-internal'].tgw_rt_id}}"
+        tgw_rt_id_external: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-external'].tgw_rt_id}}"
+        tgwa_id_tor: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-tor') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
+        tgwa_id_alpha: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-alpha') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
+        tgwa_id_beta: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-beta') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
+ 
+    - name: Compile the TGW Route Table Propagations and Associations Facts
+      ansible.builtin.set_fact:
+        propagations:
+          # internal - tor
+          - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
+            tgw_attach_id: "{{ tgwa_id_tor }}" 
+          # external - tor/alpha/beta
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
+            tgw_attach_id: "{{ tgwa_id_tor }}" 
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
+            tgw_attach_id: "{{ tgwa_id_alpha }}" 
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
+            tgw_attach_id: "{{ tgwa_id_beta }}" 
+        associations:
+          # internal - alpha/beta
+          - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
+            tgw_attach_id: "{{ tgwa_id_alpha }}" 
+          - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
+            tgw_attach_id: "{{ tgwa_id_beta }}" 
+          # external - tor
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
+            tgw_attach_id: "{{ tgwa_id_tor }}" 
 
+    - name: Display the Transit Gateway Route Table Propagations Facts 
+      ansible.builtin.debug:
+        var: propagations
+
+    - name: Display the Transit Gateway Route Table Associations Facts
+      ansible.builtin.debug:
+        var: associations
+
+    - name: Create Transit Gateway Route Table Association
+      loop: "{{ associations }}"
+      vars:
+        tgw_rtb_id: "{{ item.tgw_rtb_id }}"
+        tgw_attach_id: "{{ item.tgw_attach_id }}"
+      include_role:
+        name: custom_aws.ec2.transit_gateway_route_table_association
+
+    - name: Create Transit Gateway Route Table Propagation
+      loop: "{{ propagations }}"
+      vars:
+        tgw_rtb_id: "{{ item.tgw_rtb_id }}"
+        tgw_attach_id: "{{ item.tgw_attach_id }}"
+      include_role:
+        name: custom_aws.ec2.transit_gateway_route_table_propagation
+
+    - name: "Create Transit Gateway Route Table Static Route (tgw-rt-internal/tgwa_id_tor)"
+      register: res_static
+      failed_when: "res_static.rc != 0 and 'RouteAlreadyExists' not in res_static.stderr"
+      changed_when: "'An error occurred (RouteAlreadyExists) when calling the CreateTransitGatewayRoute operation' not in res_static.stderr"
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 create-transit-gateway-route --transit-gateway-route-table-id '{{ tgw_rt_id_internal }}' --destination-cidr-block '0.0.0.0/0' --transit-gateway-attachment-id '{{ tgwa_id_tor }}'
+
+    - name: "Create Transit Gateway Route Table Static Route (tgw-rt-external/tgwa_id_alpha)"
+      register: res_static
+      failed_when: "res_static.rc != 0 and 'RouteAlreadyExists' not in res_static.stderr"
+      changed_when: "'An error occurred (RouteAlreadyExists) when calling the CreateTransitGatewayRoute operation' not in res_static.stderr"
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 create-transit-gateway-route --transit-gateway-route-table-id '{{ tgw_rt_id_external }}' --destination-cidr-block '{{ vpcs[1].cidr }}' --transit-gateway-attachment-id '{{ tgwa_id_alpha }}'
+
+    - name: "Create Transit Gateway Route Table Static Route (tgw-rt-external/tgwa_id_beta)"
+      register: res_static
+      failed_when: "res_static.rc != 0 and 'RouteAlreadyExists' not in res_static.stderr"
+      changed_when: "'An error occurred (RouteAlreadyExists) when calling the CreateTransitGatewayRoute operation' not in res_static.stderr"
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 create-transit-gateway-route --transit-gateway-route-table-id '{{ tgw_rt_id_external }}' --destination-cidr-block '{{ vpcs[2].cidr }}' --transit-gateway-attachment-id '{{ tgwa_id_beta }}'
+
+
+
+    - fail:
+        msg: stop
 
     # Create a NAT Gateway for each availability zone
     # NOTE: AWS accounts are normally limited to 5 elastic ip addresses

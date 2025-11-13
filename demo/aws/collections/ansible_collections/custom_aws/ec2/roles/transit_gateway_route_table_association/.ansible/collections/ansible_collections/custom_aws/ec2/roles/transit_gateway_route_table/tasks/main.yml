@@ -31,6 +31,17 @@
       ansible.builtin.fail:
         msg: "Unable To Proceed - Too Many Route Table IDs For Given Transit Gateway Route Table Name"
 
+    - name: "Save Transit Gateway Route Table ID To Facts"
+      ansible.builtin.set_fact:
+        custom_aws_ec2_transit_gateway_route_table: "{{
+          custom_aws_ec2_transit_gateway_route_table | default({}) | combine({
+            tgw_rt_name: {
+              'tgw_id': tgw_id,
+              'tgw_rt_id': tgw_rt_id
+            }
+          })
+        }}"
+
 - name: Create Transit Gateway Route Table
   when: "tgw_rt_name not in tgw_rt.stdout"
   block:
@@ -43,23 +54,6 @@
 
     - name: "Initialize Transit Gateway Route Table: {{ tgw_rt_name }}"
       changed_when: true # Previous gates determine if this command needs to run to change the aws state
-      register: tgw_rt_create
       ansible.builtin.command:
         cmd: |
           aws ec2 create-transit-gateway-route-table --transit-gateway-id '{{ tgw_id }}' --tag-specifications '{"ResourceType":"transit-gateway-route-table","Tags":[{"Key":"Name","Value":"{{ tgw_rt_name }}"}]}'
-
-    - name: "Get Transit Gateway Route Table ID From Init Output"
-      set_fact:
-        tgw_rt_id: "{{ (tgw_rt_create.stdout | from_json).TransitGatewayRouteTable.TransitGatewayRouteTableId }}"
-
-
-- name: "Save Transit Gateway Route Table ID To Facts"
-  ansible.builtin.set_fact:
-    custom_aws_ec2_transit_gateway_route_table: "{{
-      custom_aws_ec2_transit_gateway_route_table | default({}) | combine({
-        tgw_rt_name: {
-          'tgw_id': tgw_id,
-          'tgw_rt_id': tgw_rt_id
-        }
-      })
-    }}"

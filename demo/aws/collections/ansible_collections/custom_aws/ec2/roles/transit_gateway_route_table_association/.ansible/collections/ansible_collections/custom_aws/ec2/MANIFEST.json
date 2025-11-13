@@ -1,0 +1,30 @@
+{
+ "collection_info": {
+  "namespace": "custom_aws",
+  "name": "ec2",
+  "version": "1.0.0",
+  "authors": [
+   "ryan erickson <rerickso@redhat.com>"
+  ],
+  "readme": "README.md",
+  "tags": [],
+  "description": "Custom \"ec2\" modules not present in the community aws collection",
+  "license": [
+   "GPL-2.0-or-later"
+  ],
+  "license_file": null,
+  "dependencies": {},
+  "repository": "http://github.com/rerickso-at-redhat/ocp_ingress",
+  "documentation": "http://docs.example.com",
+  "homepage": "http://example.com",
+  "issues": "http://example.com/issue/tracker"
+ },
+ "file_manifest_file": {
+  "name": "FILES.json",
+  "ftype": "file",
+  "chksum_type": "sha256",
+  "chksum_sha256": "673e28dd0343908a9c34a006e6b396d240dd604a653b3806f495c0acbc5cc7b1",
+  "format": 1
+ },
+ "format": 1
+}
