@@ -1,5 +1,5 @@
 ---
-- name: "Deploy Multi Cluster OCP UPI Components"
+- name: "Deploy Multi Cluster OCP Components"
   hosts: localhost
   gather_facts: false
   vars_files:
@@ -23,11 +23,26 @@
         multi_ok: false
 
     - name: "Initialize A VPC Internet Gateway in vpcs[0] - ({{ vpcs[0].name }})"
-      register: res_igw
+      register: res_igw_tor
       amazon.aws.ec2_vpc_igw:
         vpc_id: "{{ res_vpcs.results[0].vpc.id }}" # NOTE: hard coded 0 - watch ordering on "vpcs" variable
         tags:
           Name: "tor-igw"
+
+    - name: "Initialize A VPC Internet Gateway in vpcs[1] - ({{ vpcs[1].name }})"
+      register: res_igw_alpha
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ res_vpcs.results[1].vpc.id }}" # NOTE: hard coded 1 - watch ordering on "vpcs" variable
+        tags:
+          Name: "alpha-igw"
+
+    - name: "Initialize A VPC Internet Gateway in vpcs[2] - ({{ vpcs[2].name }})"
+      register: res_igw_beta
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ res_vpcs.results[2].vpc.id }}" # NOTE: hard coded 2 - watch ordering on "vpcs" variable
+        tags:
+          Name: "beta-igw"
+
 
     # TODO: Optimize the three module calls into one
 
@@ -61,6 +76,7 @@
         cidr: "{{ item.cidr }}"
         tags:
           Name: "{{ item.name }}"
+          kubernetes.io/cluster/unmanaged: "{{ true if '-tgw-' in item.name else omit }}"
 
     - name: Initialize the Transit Gateway
       register: res_tgw
@@ -120,25 +136,6 @@
     - name: "Display Transit Gateway Route Table Facts"
       debug:
         var: custom_aws_ec2_transit_gateway_route_table
-
-      # transit_gateway_id
-      # tga ids to associate
-      ## internal 
-      # associations:
-      # tgwa-alpha
-      # tgwa-beta
-      # routes:
-      # 10.0.0.0/8 black
-      # 172.16.0.0/12 black
-      # 192.168.0.0/16 black
-      # 0/0 to tgw-attach-id
-      #
-      ## external:
-      # associations:
-      # tgwa-tor
-      # routes:
-      # 10.1 -> tgwa-alpha
-      # 10.2 -> tgwa-beta
 
     - name: Display Transit Gateway Attachment Facts
       loop:
@@ -269,7 +266,7 @@
       ansible.builtin.set_fact:
         ngw_ids: "{{ res_ngws.results | selectattr('nat_gateway_id', 'defined') | map(attribute='nat_gateway_id') }}"
 
-    - name: "Get Public Subnet IDs"
+    - name: "Get Tor Public Subnet IDs"
       loop: "{{ vpcs[0].subnets }}"
       when: "'-public-' in item.name"
       set_fact:
@@ -287,11 +284,23 @@
       set_fact:
         tor_tgw_subnet_ids: "{{ tor_tgw_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
 
+    - name: "Get Alpha Public Subnet IDs"
+      loop: "{{ vpcs[1].subnets }}"
+      when: "'-public-' in item.name"
+      set_fact:
+        alpha_public_subnet_ids: "{{ alpha_public_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
+
     - name: "Get Alpha Private Subnet IDs"
       loop: "{{ vpcs[1].subnets }}"
       when: "'-private-' in item.name"
       set_fact:
         alpha_private_subnet_ids: "{{ alpha_private_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
+
+    - name: "Get Beta Public Subnet IDs"
+      loop: "{{ vpcs[2].subnets }}"
+      when: "'-public-' in item.name"
+      set_fact:
+        beta_public_subnet_ids: "{{ beta_public_subnet_ids | default([]) + [(res_subnets_2['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
 
     - name: "Get Beta Private Subnet IDs"
       loop: "{{ vpcs[2].subnets }}"
@@ -310,7 +319,7 @@
         subnets: "{{ tor_public_subnet_ids }}"
         routes:
           - dest: 0.0.0.0/0
-            gateway_id: "{{ res_igw.gateway_id }}"
+            gateway_id: "{{ res_igw_tor.gateway_id }}"
           - dest: 10.1.0.0/16
             gateway_id: "{{ res_tgw.transit_gateway.transit_gateway_id }}"
           - dest: 10.2.0.0/16
@@ -340,8 +349,20 @@
     - name: Display Route Table Subnets (alpha)
       debug:
         var: alpha_private_subnet_ids
- 
+
+    - name: Initialize VPC Route Tables (alpha-public)
+      register: res_rtb_alpha_public
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ res_vpcs.results[1].vpc.id }}"
+        subnets: "{{ alpha_public_subnet_ids }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ res_igw_alpha.gateway_id }}"
+        tags:
+          Name: "alpha-public"
+
     - name: Initialize VPC Route Tables (alpha-private)
+      register: res_rtb_alpha_private
       amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ res_vpcs.results[1].vpc.id }}"
         subnets: "{{ alpha_private_subnet_ids }}"
@@ -354,8 +375,20 @@
     - name: Display Route Table Subnets (beta)
       debug:
         var: beta_private_subnet_ids
- 
+
+    - name: Initialize VPC Route Tables (beta-public)
+      register: res_rtb_beta_public
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ res_vpcs.results[2].vpc.id }}"
+        subnets: "{{ beta_public_subnet_ids }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ res_igw_beta.gateway_id }}"
+        tags:
+          Name: "beta-public"
+
     - name: Initialize VPC Route Tables (beta-private)
+      register: res_rtb_beta_private
       amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ res_vpcs.results[2].vpc.id }}"
         subnets: "{{ beta_private_subnet_ids }}"
@@ -366,7 +399,7 @@
           Name: "beta-private"
 
     # TODO: Does this provide s3 connectivity via the TGW or do I need a VPCE per VPC?
-    - name: "Initialize VPC Endpoint (S3) - {{ primary_region }}"
+    - name: "Initialize VPC Endpoint (S3) - tor - {{ primary_region }}"
       amazon.aws.ec2_vpc_endpoint:
         region: "{{ primary_region }}"
         service: "com.amazonaws.{{ primary_region }}.s3"
@@ -377,12 +410,34 @@
           - "{{ res_rtb_tor_private.results[1].route_table.id }}"
           - "{{ res_rtb_tor_private.results[2].route_table.id }}"
 
-    - name: Initialize the public-facing-vms security group
+    - name: "Initialize VPC Endpoint (S3) - alpha - {{ primary_region }}"
+      amazon.aws.ec2_vpc_endpoint:
+        region: "{{ primary_region }}"
+        service: "com.amazonaws.{{ primary_region }}.s3"
+        vpc_id: "{{ res_vpcs.results[1].vpc.id }}" # alpha
+        route_table_ids:
+          - "{{ res_rtb_alpha_public.route_table.id }}"
+          - "{{ res_rtb_alpha_private.route_table.id }}"
+
+    - name: "Initialize VPC Endpoint (S3) - beta - {{ primary_region }}"
+      amazon.aws.ec2_vpc_endpoint:
+        region: "{{ primary_region }}"
+        service: "com.amazonaws.{{ primary_region }}.s3"
+        vpc_id: "{{ res_vpcs.results[2].vpc.id }}" # beta
+        route_table_ids:
+          - "{{ res_rtb_beta_public.route_table.id }}"
+          - "{{ res_rtb_beta_private.route_table.id }}"
+
+    - name: Initialize the public-facing-vms security group for each VPC
       register: sg_public_facing_vms
+      loop:
+        - 0
+        - 1
+        - 2
       amazon.aws.ec2_security_group:
         name: "public-facing-vms"
         description: "Public facing VMs that need SSH access"
-        vpc_id: "{{ res_vpcs.results[0].vpc.id }}"
+        vpc_id: "{{ res_vpcs.results[item].vpc.id }}"
         rules:
           - proto: tcp
             ports:
@@ -390,7 +445,7 @@
             cidr_ip: "0.0.0.0/0"
         tags:
           Name: "public-facing-vms"
-    
+
     # NOTE: Could create a new play here by re-gathering vpc and subnet facts
     #       Would rapidly decrease vm-maintenance runs
 
@@ -471,12 +526,14 @@
       ansible.builtin.debug:
         var: ec2_router_bgp
         verbosity: 2
-
+    
+    # TODO: the instances must be running to have a public IP available to add the host ... 
     - name: "Add the Test AWS hosts to the Ansible Inventory"
       loop:
         - hostname: "bastion"
-          ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name }}"
-          private_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address }}"
+          # Directly in interfaces on creation but only in association afterwards
+          ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_dns_name }}"
+          private_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
        # - hostname: "connectivity-test-tor"
        #   ansible_ssh_host: "{{ res_test_vms.results[0].instances[0].network_interfaces[0].private_dns_name }}"
        #   private_ip_address: "{{ res_test_vms.results[0].instances[0].network_interfaces[0].private_ip_address }}"
@@ -511,6 +568,49 @@
 
     # NOTE: maybe rsync content from the bastion to the test nodes
 
+    - name: "Print the revelant install-config.yaml configurations"
+      copy:
+        dest: stub.install-config.yaml
+        content: |
+          # TOR Public, Private
+          platform:
+            aws:
+              region: "{{ primary_region }}"
+              vpc:
+                subnets:
+                  - id: {{ tor_public_subnet_ids[0] }}
+                  - id: {{ tor_public_subnet_ids[1] }}
+                  - id: {{ tor_public_subnet_ids[2] }}
+                  - id: {{ tor_private_subnet_ids[0] }}
+                  - id: {{ tor_private_subnet_ids[1] }}
+                  - id: {{ tor_private_subnet_ids[2] }}
+
+          # Alpha Public, Private
+          platform:
+            aws:
+              region: "{{ primary_region }}"
+              vpc:
+                subnets:
+                  - id: {{ alpha_public_subnet_ids[0] }}
+                  - id: {{ alpha_public_subnet_ids[1] }}
+                  - id: {{ alpha_public_subnet_ids[2] }}
+                  - id: {{ alpha_private_subnet_ids[0] }}
+                  - id: {{ alpha_private_subnet_ids[1] }}
+                  - id: {{ alpha_private_subnet_ids[2] }}
+
+          # Beta Public, Private
+          platform:
+            aws:
+              region: "{{ primary_region }}"
+              vpc:
+                subnets:
+                  - id: {{ beta_public_subnet_ids[0] }}
+                  - id: {{ beta_public_subnet_ids[1] }}
+                  - id: {{ beta_public_subnet_ids[2] }}
+                  - id: {{ beta_private_subnet_ids[0] }}
+                  - id: {{ beta_private_subnet_ids[1] }}
+                  - id: {{ beta_private_subnet_ids[2] }}
+ 
 - name: "Configure Test VMs"
   hosts: test_vms
   gather_facts: false

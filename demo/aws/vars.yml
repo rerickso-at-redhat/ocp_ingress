@@ -74,7 +74,18 @@ vpcs:
         cidr: 10.1.130.0/24
         az: us-east-2c
       # FREE SPACE (TGWAs): 10.1.131.0/24
-      # FREE SPACE: 10.1.132.0 - 10.1.254.254
+      #
+      # FREE SPACE: 10.1.132.0 - 10.1.159.254
+      - name: subnet-alpha-public-us-east-2a
+        cidr: 10.1.160.0/21
+        az: us-east-2a
+      - name: subnet-alpha-public-us-east-2b
+        cidr: 10.1.168.0/21
+        az: us-east-2b
+      - name: subnet-alpha-public-us-east-2c
+        cidr: 10.1.176.0/21
+        az: us-east-2c
+      # FREE SPACE: 10.1.184.0 - 10.1.254.254
 
   - name: "vpc-cluster-beta"
     cidr: 10.2.0.0/16
@@ -102,5 +113,16 @@ vpcs:
         cidr: 10.2.130.0/24
         az: us-east-2c
       # FREE SPACE (TGWAs): 10.2.131.0/24
-      # FREE SPACE: 10.2.132.0 - 10.2.254.254
+      # FREE SPACE: 10.2.132.0 - 10.2.159.254
+      - name: subnet-beta-public-us-east-2a
+        cidr: 10.2.160.0/21
+        az: us-east-2a
+      - name: subnet-beta-public-us-east-2b
+        cidr: 10.2.168.0/21
+        az: us-east-2b
+      - name: subnet-beta-public-us-east-2c
+        cidr: 10.2.176.0/21
+        az: us-east-2c
+      # FREE SPACE: 10.2.184.0 - 10.2.254.254
+
 
