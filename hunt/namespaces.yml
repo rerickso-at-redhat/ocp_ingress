@@ -14,7 +14,7 @@ metadata:
   name: anycast-shared-gateway
 ...
 
-# app1 will live on cluster1 but be accessible from both clusters
+# app1 will live on alpha but be accessible from both clusters
 ---
 apiVersion: v1
 kind: Namespace
@@ -22,7 +22,7 @@ metadata:
   name: app1
 ...
 
-# app2 will live on cluster2 but be accessible from both clusters
+# app2 will live on beta but be accessible from both clusters
 ---
 apiVersion: v1
 kind: Namespace

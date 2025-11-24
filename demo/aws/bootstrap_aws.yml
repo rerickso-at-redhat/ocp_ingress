@@ -530,18 +530,6 @@
         tags:
           Name: "private-facing-vms"
 
-#    - name: Initialize The Demo SSH Key
-#      amazon.aws.ec2_key:
-#        name: key-aws-demo
-#      register: res_key
-#
-#    - name: Create The Demo SSH Key Locally
-#      when: "res_key.key.private_key is defined"
-#      ansible.builtin.copy:
-#        mode: "0600"
-#        content: "{{ res_key.key.private_key }}"
-#        dest: "key-aws-demo.pem"
-
     - name: "Create install-config.yaml Files For Alpha, Beta"
       loop:
         - cluster: alpha
@@ -569,7 +557,7 @@
       ansible.builtin.template:
         src: "install-config.yaml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "{{ item.cluster }}.install-config.yaml"
+        dest: "ocp/{{ item.cluster }}.install-config.yaml"
 
     - name: "Save Generated Facts"
       ansible.builtin.copy:

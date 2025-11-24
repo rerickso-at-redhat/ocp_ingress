@@ -1,0 +1,68 @@
+# TODO: fix matchLabels
+# TODO: if additional routers deployed, add peering with the bgp routers in az2 (10.1.32.96)/az3(10.1.64.96)
+apiVersion: v1
+kind: List
+items:
+# us-east-2a
+- apiVersion: metallb.io/v1beta2
+  kind: BGPPeer
+  metadata:
+    name: alpha-us-east-2a
+    namespace: metallb-system
+  spec:
+    disableMP: false
+    myASN: 65001
+    peerASN: 65000
+    peerAddress: 10.0.0.96
+    peerPort: 179
+    routerID: 10.1.18.20
+    sourceAddress: 10.1.18.20
+    ebgpMultiHop: true
+    nodeSelectors:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+            - alpha-smj8q-worker-us-east-2a-p4gtx
+            - alpha-smj8q-worker-us-east-2b-khkm7
+            - alpha-smj8q-worker-us-east-2c-n6rkv
+
+#- apiVersion: metallb.io/v1beta2
+#  kind: BGPPeer
+#  metadata:
+#    name: alpha-us-east-2b
+#    namespace: metallb-system
+#  spec:
+#    disableMP: false
+#    myASN: 65001
+#    peerASN: 65000
+#    peerAddress: 10.0.0.96
+#    peerPort: 179
+#    routerID: 10.1.0.96
+#    sourceAddress: 10.1.32.96
+#    nodeSelectors:
+#      - matchLabels:
+#          kubernetes.io/hostname: alpha-smj8q-worker-us-east-2b-khkm7
+#
+#- apiVersion: metallb.io/v1beta2
+#  kind: BGPPeer
+#  metadata:
+#    name: alpha-us-east-2c
+#    namespace: metallb-system
+#  spec:
+#    disableMP: false
+#    myASN: 65001
+#    peerASN: 65000
+#    peerAddress: 10.0.0.96
+#    peerPort: 179
+#    routerID: 10.1.0.96
+#    sourceAddress: 10.1.64.96
+#    nodeSelectors:
+#      - matchLabels:
+#          kubernetes.io/hostname: alpha-smj8q-worker-us-east-2c-n6rkv
+
+# us-east-2b
+# TBD
+
+# us-east-2c
+# TBD

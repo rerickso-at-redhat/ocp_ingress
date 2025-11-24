@@ -8,7 +8,7 @@ spec:
   - name: anycast-shared-gateway
     namespace: anycast-shared-gateway
   hostnames:
-  - apps.anycast.goguybrush.com
+  - apps.alpha.sandbox728.opentlc.com 
   rules:
   - matches:
     - path:

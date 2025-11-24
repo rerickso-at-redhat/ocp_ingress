@@ -1,52 +1,18 @@
-# Installation
+# AWS Environment Setup
+1. cd demo/aws
+2. ansible-playbook bootstrap_aws.yml
+3. ansible-playbook deploy_bgplyml
 
-## Update deploy.sh
+# OpenShift Cluster Setup
+1. cd ocp
+2. Validate generated alpha.install-config.yaml file, edit if needed
+3. Validate generated beta.install-config.yaml file, edit if needed
+4. rm -rf alpha; mkdir alpha; cp alpha.install-config.yaml alpha/install-config.yaml
+5. rm -rf beta; mkdir beta; cp beta.install-config.yaml beta/install-config.yaml
+6. /path/to/openshift-install --dir alpha create cluster
+7. /path/to/openshift-install --dir beta create cluster
 
-Update the deploy.sh file with your clustera/clusterv API URLs
-
-```cat deploy.sh 
-#!/bin/bash
-
-CLUSTERA="api.cluster-a.example.io:6443"
-CLUSTERB="api.cluster-b.example.io:6443"
-
-...
-
-```
-
-## Ensure that you have the following prerequsites installed
-
-### Binaries
-`oc`
-- Available from the OpenShift GUI (? -> Command Line Tools)
-
-`skupper`
-- Available from access.redhat.com/downloads - select A-Z then Red Hat Service Interconnect
-- Direct Link: https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=redhat.service.interconnect
-
-## Run the deploy.sh script
-`./deploy.sh`
-
-# Documentation Links
-
-## Operators
-
-### MetalLB
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator
-
-### Gateway API
-The Gateway API is built into OCP 4.19+
-
-Creating a GatewayClass CRD will silently bootstrap the Gateway API to allow GatewayClass/Gateway/HTTPRoute objects to be created.
-https://docs.okd.io/latest/networking/ingress_load_balancing/configuring_ingress_cluster_traffic/ingress-gateway-api.html
-
-https://gateway-api.sigs.k8s.io/
-
-### Red Hat Service Interconnect
-https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1/html/installation/installing-operator
-
-## Application Development
-The included hello-app is a very simple webserver that allows for basic connectivity testing at various levels (bgp, rhsi, etc).
-
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/building_applications/building-applications-overview
-
+# H.U.N.T. Setup
+1. cd ../../hunt
+2. vim deploy.sh
+3. ./deploy.sh 

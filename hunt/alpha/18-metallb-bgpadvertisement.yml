@@ -12,5 +12,7 @@ items:
     ipAddressPools:
     - anycast-address-pool
     peers:
-    - lab-router
+    - alpha-us-east-2a 
+    - alpha-us-east-2b
+    - alpha-us-east-2c 
 

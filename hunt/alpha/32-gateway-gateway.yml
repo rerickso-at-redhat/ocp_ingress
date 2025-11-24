@@ -7,12 +7,12 @@ spec:
   gatewayClassName: openshift-default
   addresses:
     - type: IPAddress
-      value: 10.88.0.5
+      value: 10.1.96.5
   listeners:
   - name: http
     port: 80
     protocol: HTTP
-    hostname: apps.anycast.goguybrush.com
+    hostname: apps.alpha.sandbox728.opentlc.com
     allowedRoutes:
       namespaces:
         from: All
