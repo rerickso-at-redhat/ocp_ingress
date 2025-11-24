@@ -1,5 +1,11 @@
 ---
+sandbox_domain: "sandbox728.opentlc.com"
 primary_region: "us-east-2"
+ami_rhel_10: "ami-0912d5cf1d5dff99c"
+supernet_clusters: "10.0.0.0/8"
+supernet_tor: "10.0.0.0/16"
+supernet_alpha: "10.1.0.0/16"
+supernet_beta: "10.2.0.0/16"
 vpcs:
   - name: "vpc-tor"
     cidr: 10.0.0.0/16
@@ -15,7 +21,9 @@ vpcs:
       - name: subnet-tor-private-us-east-2c
         cidr: 10.0.2.0/24
         az: us-east-2c
-      ### FREE SPACE (Privates): 10.0.3.0/24 - 10.0.127.0/24
+      ### FREE SPACE (Privates): 10.0.3.0/24 - 10.0.95.0/24
+      ### RESERVED (BGP): 10.0.96.0/24
+      ### FREE SPACE (Privates): 10.0.97.0/24 - 10.0.127.0/24
       #
       ## Publics (Supernet: 10.0.128.0/17)
       ### TGW Attachments (Supernet: 10.0.128.0/21)
@@ -62,7 +70,8 @@ vpcs:
       - name: subnet-alpha-private-machine-us-east-2c
         cidr: 10.1.64.0/19
         az: us-east-2c
-      ### FREE SPACE (Privates): 10.1.96.0/19
+      ### RESERVED (BGP): 10.1.96.0/21
+      ### FREE SPACE (Privates): 10.1.104.0/21 - 10.1.120.0/24
       ## TGW Attachments (Supernet: 10.1.128.0/22) 
       - name: subnet-alpha-tgw-us-east-2a
         cidr: 10.1.128.0/24
@@ -101,7 +110,8 @@ vpcs:
       - name: subnet-beta-private-machine-us-east-2c
         cidr: 10.2.64.0/19
         az: us-east-2c
-      # FREE SPACE (Privates): 10.2.96.0/19
+      ### RESERVED (BGP): 10.2.96.0/21
+      ### FREE SPACE (Privates): 10.2.104.0/21 - 10.2.120.0/24
       # TGW Attachments (Supernet: 10.2.128.0/22)
       - name: subnet-beta-tgw-us-east-2a
         cidr: 10.2.128.0/24
