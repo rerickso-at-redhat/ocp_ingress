@@ -1,1 +1,5 @@
+secrets/
+id_rsa_*
 *.pem
+secrets.yml
+generated_facts.yml
