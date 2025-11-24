@@ -4,8 +4,7 @@
   gather_facts: false
   vars_files:
     - "vars.yml"
-  vars:
-    ami_rhel_10: "ami-0912d5cf1d5dff99c"
+    - "secrets/secrets.yml" # Not saved to repo - see secrets.yml.example for requirements
   collections:
     - custom_aws.ec2
   tasks:
@@ -43,7 +42,6 @@
         tags:
           Name: "beta-igw"
 
-
     # TODO: Optimize the three module calls into one
 
     - name: Initialize First VPC Subnets
@@ -53,6 +51,7 @@
         vpc_id: "{{ res_vpcs.results[0].vpc.id }}"
         az: "{{ item.az }}"
         cidr: "{{ item.cidr }}"
+        purge_tags: false
         tags:
           Name: "{{ item.name }}"
 
@@ -63,6 +62,7 @@
         vpc_id: "{{ res_vpcs.results[1].vpc.id }}"
         az: "{{ item.az }}"
         cidr: "{{ item.cidr }}"
+        purge_tags: false
         tags:
           Name: "{{ item.name }}"
           kubernetes.io/cluster/unmanaged: "{{ true if '-tgw-' in item.name else omit }}"
@@ -74,29 +74,139 @@
         vpc_id: "{{ res_vpcs.results[2].vpc.id }}"
         az: "{{ item.az }}"
         cidr: "{{ item.cidr }}"
+        purge_tags: false
         tags:
           Name: "{{ item.name }}"
           kubernetes.io/cluster/unmanaged: "{{ true if '-tgw-' in item.name else omit }}"
 
+    - name: "Get Tor Public Subnet IDs"
+      loop: "{{ vpcs[0].subnets }}"
+      when: "'-public-' in item.name"
+      ansible.builtin.set_fact:
+        tor_public_subnet_ids: "{{ tor_public_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get Private Subnet IDs"
+      loop: "{{ vpcs[0].subnets }}"
+      when: "'-private-' in item.name"
+      ansible.builtin.set_fact:
+        tor_private_subnet_ids: "{{ tor_private_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get TGW Subnet IDs"
+      loop: "{{ vpcs[0].subnets }}"
+      when: "'-tgw-' in item.name"
+      ansible.builtin.set_fact:
+        tor_tgw_subnet_ids: "{{ tor_tgw_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get Alpha Public Subnet IDs"
+      loop: "{{ vpcs[1].subnets }}"
+      when: "'-public-' in item.name"
+      ansible.builtin.set_fact:
+        alpha_public_subnet_ids: "{{ alpha_public_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get Alpha Private Subnet IDs"
+      loop: "{{ vpcs[1].subnets }}"
+      when: "'-private-' in item.name"
+      ansible.builtin.set_fact:
+        alpha_private_subnet_ids: "{{ alpha_private_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get Beta Public Subnet IDs"
+      loop: "{{ vpcs[2].subnets }}"
+      when: "'-public-' in item.name"
+      ansible.builtin.set_fact:
+        beta_public_subnet_ids: "{{ beta_public_subnet_ids | default([]) + [(res_subnets_2['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    - name: "Get Beta Private Subnet IDs"
+      loop: "{{ vpcs[2].subnets }}"
+      when: "'-private-' in item.name"
+      ansible.builtin.set_fact:
+        beta_private_subnet_ids: "{{ beta_private_subnet_ids | default([]) + [(res_subnets_2['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]
+          }}"
+
+    # TODO: it would be nice if this could live in vars.yml since it is carving out ip space. struggling between the need for subnet ids and ips/names but I also need to reuse this after IPI to make the interfaces ...
+    - name: "Establish Subnet CIDR Reservations Fact"
+      ansible.builtin.set_fact:
+        subnet_reservations:
+        # tor
+          - cluster: "tor"
+            subnet_id: "{{ tor_private_subnet_ids[0] }}"
+            cidr: "10.0.0.96/32"
+            eni_name: "bgp-peer-tor-private-us-east-2a"
+          - cluster: "tor"
+            subnet_id: "{{ tor_private_subnet_ids[1] }}"
+            cidr: "10.0.1.96/32"
+            eni_name: "bgp-peer-tor-private-us-east-2b"
+          - cluster: "tor"
+            subnet_id: "{{ tor_private_subnet_ids[2] }}"
+            cidr: "10.0.2.96/32"
+            eni_name: "bgp-peer-tor-private-us-east-2c"
+          # alpha
+          - cluster: "alpha"
+            subnet_id: "{{ alpha_private_subnet_ids[0] }}"
+            cidr: "10.1.0.96/32"
+            eni_name: "bgp-peer-alpha-private-us-east-2a"
+          - cluster: "alpha"
+            subnet_id: "{{ alpha_private_subnet_ids[1] }}"
+            cidr: "10.1.32.96/32"
+            eni_name: "bgp-peer-alpha-private-us-east-2b"
+          - cluster: "alpha"
+            subnet_id: "{{ alpha_private_subnet_ids[2] }}"
+            cidr: "10.1.64.96/32"
+            eni_name: "bgp-peer-alpha-private-us-east-2c"
+          # beta
+          - cluster: "beta"
+            subnet_id: "{{ beta_private_subnet_ids[0] }}"
+            cidr: "10.2.0.96/32"
+            eni_name: "bgp-peer-beta-private-us-east-2a"
+          - cluster: "beta"
+            subnet_id: "{{ beta_private_subnet_ids[1] }}"
+            cidr: "10.2.32.96/32"
+            eni_name: "bgp-peer-beta-private-us-east-2b"
+          - cluster: "beta"
+            subnet_id: "{{ beta_private_subnet_ids[2] }}"
+            cidr: "10.2.64.96/32"
+            eni_name: "bgp-peer-beta-private-us-east-2c"
+
+    # NOTE: A little duplication of get calls (same subnet gathered multiple times) saves effort on the create calls
+    - name: "Get Subnet CIDR Reservations"
+      register: res_reservations
+      loop: "{{ subnet_reservations }}"
+      changed_when: false
+      ansible.builtin.command:
+        cmd: "aws ec2 get-subnet-cidr-reservations --subnet-id {{ item.subnet_id }}"
+
+    - name: "Create Subnets IPv4 Reservations"
+      register: res_reservation
+      loop: "{{ subnet_reservations }}"
+      loop_control:
+        index_var: i
+      # When the cidr reservation isnt already part of the given subnet (note - doesnt check all subnets or the whole vpc)
+      when: "(res_reservations.results[i].stdout | from_json).SubnetIpv4CidrReservations | selectattr('Cidr', 'equalto', item.cidr) | length == 0"
+      changed_when: true # Only runs when a change is needed
+      ansible.builtin.command:
+        cmd: "aws ec2 create-subnet-cidr-reservation --cidr '{{ item.cidr }}' --reservation-type 'explicit' --subnet-id '{{ item.subnet_id }}'"
+    
     - name: Initialize the Transit Gateway
       register: res_tgw
       amazon.aws.ec2_transit_gateway:
         description: Gateway between the alpha cluster, beta cluster, and internet
         region: "{{ primary_region }}"
         wait: true
-        # TODO: if it doesnt come up right this is probably the reason
         auto_associate: false
         auto_propagate: false
-        #dns_support: true
-        #multicast_support: false
+        # dns_support: true
+        # multicast_support: false
         tags:
           Name: "tgw-tor-{{ primary_region }}"
- 
-    - name: Save the Transit Gateway ID
-      set_fact:
-        transit_gateway_id: "{{ res_tgw.transit_gateway.transit_gateway_id }}"
 
-    # TODO: optimize triple module use based on how subnets end up testing out
+    - name: Save the Transit Gateway ID
+      ansible.builtin.set_fact:
+        transit_gateway_id: "{{ res_tgw.transit_gateway.transit_gateway_id }}"
 
     - name: Compile the 'tgwa-tor' TGW Attachment Facts
       ansible.builtin.set_fact:
@@ -123,27 +233,27 @@
       vars:
         tgw_rt_name: "tgw-rt-internal"
         tgw_id: "{{ transit_gateway_id }}"
-      include_role:
+      ansible.builtin.include_role:
         name: custom_aws.ec2.transit_gateway_route_table
 
     - name: "Initialize Transit Gateway Route Table: tgw-rt-external"
       vars:
         tgw_rt_name: "tgw-rt-external"
         tgw_id: "{{ transit_gateway_id }}"
-      include_role:
+      ansible.builtin.include_role:
         name: custom_aws.ec2.transit_gateway_route_table
 
     - name: "Display Transit Gateway Route Table Facts"
-      debug:
+      ansible.builtin.debug:
         var: custom_aws_ec2_transit_gateway_route_table
 
     - name: Display Transit Gateway Attachment Facts
       loop:
-      - tgwa_tor
-      - tgwa_alpha
-      - tgwa_beta
+        - tgwa_tor
+        - tgwa_alpha
+        - tgwa_beta
       ansible.builtin.debug:
-          var: "{{ item }}"
+        var: "{{ item }}"
 
     - name: Initialize the Transit Gateway Attachments
       loop:
@@ -155,7 +265,7 @@
         name: "{{ item.name }}"
         transit_gateway: "{{ transit_gateway_id }}"
         appliance_mode_support: "{{ item.appliance_mode_support }}"
-        #dns_support: true
+        # dns_support: true
         subnets: "{{ item.subnets }}"
         wait: true
         tags:
@@ -163,36 +273,39 @@
 
     - name: "Compile the TGW Route Table and Attachment IDs"
       ansible.builtin.set_fact:
-        tgw_rt_id_internal: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-internal'].tgw_rt_id}}"
-        tgw_rt_id_external: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-external'].tgw_rt_id}}"
-        tgwa_id_tor: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-tor') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
-        tgwa_id_alpha: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-alpha') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
-        tgwa_id_beta: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-beta') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id') | first }}"
- 
+        tgw_rt_id_internal: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-internal'].tgw_rt_id }}"
+        tgw_rt_id_external: "{{ custom_aws_ec2_transit_gateway_route_table['tgw-rt-external'].tgw_rt_id }}"
+        tgwa_id_tor: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-tor') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id')
+          | first }}"
+        tgwa_id_alpha: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-alpha') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id')
+          | first }}"
+        tgwa_id_beta: "{{ (res_tgwas.results | selectattr('item.name', 'equalto', 'tgwa-beta') | map(attribute='attachments'))[0] | map(attribute='transit_gateway_attachment_id')
+          | first }}"
+
     - name: Compile the TGW Route Table Propagations and Associations Facts
       ansible.builtin.set_fact:
         propagations:
           # internal - tor
           - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
-            tgw_attach_id: "{{ tgwa_id_tor }}" 
+            tgw_attach_id: "{{ tgwa_id_tor }}"
           # external - tor/alpha/beta
-          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
-            tgw_attach_id: "{{ tgwa_id_tor }}" 
-          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
-            tgw_attach_id: "{{ tgwa_id_alpha }}" 
-          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
-            tgw_attach_id: "{{ tgwa_id_beta }}" 
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}"
+            tgw_attach_id: "{{ tgwa_id_tor }}"
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}"
+            tgw_attach_id: "{{ tgwa_id_alpha }}"
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}"
+            tgw_attach_id: "{{ tgwa_id_beta }}"
         associations:
           # internal - alpha/beta
           - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
-            tgw_attach_id: "{{ tgwa_id_alpha }}" 
+            tgw_attach_id: "{{ tgwa_id_alpha }}"
           - tgw_rtb_id: "{{ tgw_rt_id_internal }}"
-            tgw_attach_id: "{{ tgwa_id_beta }}" 
+            tgw_attach_id: "{{ tgwa_id_beta }}"
           # external - tor
-          - tgw_rtb_id: "{{ tgw_rt_id_external }}" 
-            tgw_attach_id: "{{ tgwa_id_tor }}" 
+          - tgw_rtb_id: "{{ tgw_rt_id_external }}"
+            tgw_attach_id: "{{ tgwa_id_tor }}"
 
-    - name: Display the Transit Gateway Route Table Propagations Facts 
+    - name: Display the Transit Gateway Route Table Propagations Facts
       ansible.builtin.debug:
         var: propagations
 
@@ -205,7 +318,7 @@
       vars:
         tgw_rtb_id: "{{ item.tgw_rtb_id }}"
         tgw_attach_id: "{{ item.tgw_attach_id }}"
-      include_role:
+      ansible.builtin.include_role:
         name: custom_aws.ec2.transit_gateway_route_table_association
 
     - name: Create Transit Gateway Route Table Propagation
@@ -213,7 +326,7 @@
       vars:
         tgw_rtb_id: "{{ item.tgw_rtb_id }}"
         tgw_attach_id: "{{ item.tgw_attach_id }}"
-      include_role:
+      ansible.builtin.include_role:
         name: custom_aws.ec2.transit_gateway_route_table_propagation
 
     - name: "Create Transit Gateway Route Table Static Route (tgw-rt-internal/tgwa_id_tor)"
@@ -266,52 +379,6 @@
       ansible.builtin.set_fact:
         ngw_ids: "{{ res_ngws.results | selectattr('nat_gateway_id', 'defined') | map(attribute='nat_gateway_id') }}"
 
-    - name: "Get Tor Public Subnet IDs"
-      loop: "{{ vpcs[0].subnets }}"
-      when: "'-public-' in item.name"
-      set_fact:
-        tor_public_subnet_ids: "{{ tor_public_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get Private Subnet IDs"
-      loop: "{{ vpcs[0].subnets }}"
-      when: "'-private-' in item.name"
-      set_fact:
-        tor_private_subnet_ids: "{{ tor_private_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get TGW Subnet IDs"
-      loop: "{{ vpcs[0].subnets }}"
-      when: "'-tgw-' in item.name"
-      set_fact:
-        tor_tgw_subnet_ids: "{{ tor_tgw_subnet_ids | default([]) + [(res_subnets_0['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get Alpha Public Subnet IDs"
-      loop: "{{ vpcs[1].subnets }}"
-      when: "'-public-' in item.name"
-      set_fact:
-        alpha_public_subnet_ids: "{{ alpha_public_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get Alpha Private Subnet IDs"
-      loop: "{{ vpcs[1].subnets }}"
-      when: "'-private-' in item.name"
-      set_fact:
-        alpha_private_subnet_ids: "{{ alpha_private_subnet_ids | default([]) + [(res_subnets_1['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get Beta Public Subnet IDs"
-      loop: "{{ vpcs[2].subnets }}"
-      when: "'-public-' in item.name"
-      set_fact:
-        beta_public_subnet_ids: "{{ beta_public_subnet_ids | default([]) + [(res_subnets_2['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    - name: "Get Beta Private Subnet IDs"
-      loop: "{{ vpcs[2].subnets }}"
-      when: "'-private-' in item.name"
-      set_fact:
-        beta_private_subnet_ids: "{{ beta_private_subnet_ids | default([]) + [(res_subnets_2['results'] | selectattr('subnet.tags.Name', 'equalto', item.name))[0]['subnet']['id']]}}"
-
-    # The default ocp installer seems to set up the following routes:
-    # Private: 0/0 to NAT, prefix list to VPCE
-    # Public: 0/0 to IGW, prefix list to VPCE
-    # TODO: need a nat gateway for each private subnet (name, subnet, Public type)
     - name: Initialize VPC Route Tables (tor-public)
       register: res_rtb_tor_public
       amazon.aws.ec2_vpc_route_table:
@@ -344,10 +411,10 @@
           - dest: 0.0.0.0/0
             gateway_id: "{{ ngw_ids[item.index] }}"
         tags:
-          Name: "tor-private-{{item.letter}}"
+          Name: "tor-private-{{ item.letter }}"
 
     - name: Display Route Table Subnets (alpha)
-      debug:
+      ansible.builtin.debug:
         var: alpha_private_subnet_ids
 
     - name: Initialize VPC Route Tables (alpha-public)
@@ -371,9 +438,9 @@
             gateway_id: "{{ res_tgw.transit_gateway.transit_gateway_id }}"
         tags:
           Name: "alpha-private"
-    
+
     - name: Display Route Table Subnets (beta)
-      debug:
+      ansible.builtin.debug:
         var: beta_private_subnet_ids
 
     - name: Initialize VPC Route Tables (beta-public)
@@ -398,7 +465,6 @@
         tags:
           Name: "beta-private"
 
-    # TODO: Does this provide s3 connectivity via the TGW or do I need a VPCE per VPC?
     - name: "Initialize VPC Endpoint (S3) - tor - {{ primary_region }}"
       amazon.aws.ec2_vpc_endpoint:
         region: "{{ primary_region }}"
@@ -446,9 +512,6 @@
         tags:
           Name: "public-facing-vms"
 
-    # NOTE: Could create a new play here by re-gathering vpc and subnet facts
-    #       Would rapidly decrease vm-maintenance runs
-
     - name: Initialize the private-facing-vms security group
       register: sg_private_facing_vms
       loop:
@@ -463,240 +526,64 @@
           - proto: tcp
             ports:
               - 22
-            cidr_ip: "10.0.0.0/8" # NOTE: Hard Coded Supernet
+            cidr_ip: "{{ supernet_clusters }}"
         tags:
           Name: "private-facing-vms"
 
-    - name: Initialize The Demo SSH Key
-      amazon.aws.ec2_key:
-        name: key-aws-demo 
-      register: res_key
+#    - name: Initialize The Demo SSH Key
+#      amazon.aws.ec2_key:
+#        name: key-aws-demo
+#      register: res_key
+#
+#    - name: Create The Demo SSH Key Locally
+#      when: "res_key.key.private_key is defined"
+#      ansible.builtin.copy:
+#        mode: "0600"
+#        content: "{{ res_key.key.private_key }}"
+#        dest: "key-aws-demo.pem"
 
-    - name: Create The Demo SSH Key Locally
-      when: "res_key.key.private_key is defined"
-      ansible.builtin.copy:
-        mode: "0600"
-        content: "{{ res_key.key.private_key }}"
-        dest: "key-aws-demo.pem"
-
-    - name: Initialize Bastion EC2 Instance
-      register: res_bastion
-      amazon.aws.ec2_instance:
-        name: "bastion"
-        key_name: "key-aws-demo"
-        vpc_subnet_id: "{{ tor_public_subnet_ids[3] }}" # NOTE: hardcoded index
-        instance_type: "t2.small"
-        security_group: "public-facing-vms" # ID would be: "{{ sg_public_facing_vms['group_id'] }}"
-        image_id: "{{ ami_rhel_10 }}"
-        network_interfaces:
-          - assign_public_ip: true
-
-    - name: Initialize Test EC2 Instances
-      register: res_test_vms
+    - name: "Create install-config.yaml Files For Alpha, Beta"
       loop:
-        - name: "connectivity-test-tor"
-          subnet: "{{ tor_private_subnet_ids[0] }}"
-        - name: "connectivity-test-alpha"
-          subnet: "{{ alpha_private_subnet_ids[0] }}"
-        - name: "connectivity-test-beta"
-          subnet: "{{ beta_private_subnet_ids[0] }}"
-      amazon.aws.ec2_instance:
-        name: "{{ item.name }}"
-        key_name: "key-aws-demo"
-        vpc_subnet_id: "{{ item.subnet }}" 
-        instance_type: "t2.small"
-        security_group: "private-facing-vms"
-        image_id: "{{ ami_rhel_10 }}"
+        - cluster: alpha
+          supernet: "{{ supernet_alpha }}"
+          subnets:
+            - id: "{{ alpha_public_subnet_ids[0] }}"
+            - id: "{{ alpha_public_subnet_ids[1] }}"
+            - id: "{{ alpha_public_subnet_ids[2] }}"
+            - id: "{{ alpha_private_subnet_ids[0] }}"
+            - id: "{{ alpha_private_subnet_ids[1] }}"
+            - id: "{{ alpha_private_subnet_ids[2] }}"
+        - cluster: beta
+          supernet: "{{ supernet_beta }}"
+          subnets:
+            - id: "{{ beta_public_subnet_ids[0] }}"
+            - id: "{{ beta_public_subnet_ids[1] }}"
+            - id: "{{ beta_public_subnet_ids[2] }}"
+            - id: "{{ beta_private_subnet_ids[0] }}"
+            - id: "{{ beta_private_subnet_ids[1] }}"
+            - id: "{{ beta_private_subnet_ids[2] }}"
+      vars:
+        cluster: "{{ item.cluster }}"
+        supernet: "{{ item.supernet }}"
+        subnets: "{{ item.subnets }}"
+      ansible.builtin.template:
+        src: "install-config.yaml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "{{ item.cluster }}.install-config.yaml"
 
-    # TODO: Any additional networking needs re: bgp, etc
-    # TODO (long term): Deploy 3 routers, one for each AZ/IG?
-    - name: Initialize the bgp-router ec2 instance
-      register: ec2_router_bgp
-      amazon.aws.ec2_instance:
-        name: "router-bgp"
-        key_name: "key-aws-demo"
-        vpc_subnet_id: "{{ tor_public_subnet_ids[0] }}" 
-        instance_type: "t2.medium"
-        security_group: "public-facing-vms"
-        image_id: "{{ ami_rhel_10 }}"
-        network_interfaces:
-          - assign_public_ip: true
-
-    - name: "Debug router-bgp Result When Requested (-vv)"
-      ansible.builtin.debug:
-        var: ec2_router_bgp
-        verbosity: 2
-    
-    # TODO: the instances must be running to have a public IP available to add the host ... 
-    - name: "Add the Test AWS hosts to the Ansible Inventory"
-      loop:
-        - hostname: "bastion"
-          # Directly in interfaces on creation but only in association afterwards
-          ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_dns_name }}"
-          private_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
-       # - hostname: "connectivity-test-tor"
-       #   ansible_ssh_host: "{{ res_test_vms.results[0].instances[0].network_interfaces[0].private_dns_name }}"
-       #   private_ip_address: "{{ res_test_vms.results[0].instances[0].network_interfaces[0].private_ip_address }}"
-       # - hostname: "connectivity-test-alpha"
-       #   ansible_ssh_host: "{{ res_test_vms.results[1].instances[0].network_interfaces[0].private_dns_name }}"
-       #   private_ip_address: "{{ res_test_vms.results[1].instances[0].network_interfaces[0].private_ip_address }}"
-       # - hostname: "connectivity-test-beta"
-       #   ansible_ssh_host: "{{ res_test_vms.results[2].instances[0].network_interfaces[0].private_dns_name }}"
-       #   private_ip_address: "{{ res_test_vms.results[2].instances[0].network_interfaces[0].private_ip_address }}"
-      ansible.builtin.add_host:
-        hostname: "{{ item.hostname }}"
-        groups:
-          - "test_vms"
-        ansible_ssh_host: "{{ item.ansible_ssh_host }}"
-        ansible_ssh_port: 22
-        ansible_host_key_checking: false
-        ansible_user: "ec2-user"
-        ansible_ssh_private_key_file: "key-aws-demo.pem"
-        private_ip_address: "{{ item.private_ip_address }}"
-
-    - name: "Add the BGP AWS host to the Ansible Inventory"
-      ansible.builtin.add_host:
-        hostname: "bgp-router"
-        groups:
-          - "bgp"
-        ansible_ssh_host: "{{ ec2_router_bgp.instances[0].network_interfaces[0].association.public_dns_name }}"
-        ansible_ssh_port: 22
-        ansible_host_key_checking: false
-        ansible_user: "ec2-user"
-        ansible_ssh_private_key_file: "key-aws-demo.pem"
-        aws_private_dns_name: "{{ ec2_router_bgp.instances[0].network_interfaces[0].private_dns_name }}"
-
-    # NOTE: maybe rsync content from the bastion to the test nodes
-
-    - name: "Print the revelant install-config.yaml configurations"
-      copy:
-        dest: stub.install-config.yaml
-        content: |
-          # TOR Public, Private
-          platform:
-            aws:
-              region: "{{ primary_region }}"
-              vpc:
-                subnets:
-                  - id: {{ tor_public_subnet_ids[0] }}
-                  - id: {{ tor_public_subnet_ids[1] }}
-                  - id: {{ tor_public_subnet_ids[2] }}
-                  - id: {{ tor_private_subnet_ids[0] }}
-                  - id: {{ tor_private_subnet_ids[1] }}
-                  - id: {{ tor_private_subnet_ids[2] }}
-
-          # Alpha Public, Private
-          platform:
-            aws:
-              region: "{{ primary_region }}"
-              vpc:
-                subnets:
-                  - id: {{ alpha_public_subnet_ids[0] }}
-                  - id: {{ alpha_public_subnet_ids[1] }}
-                  - id: {{ alpha_public_subnet_ids[2] }}
-                  - id: {{ alpha_private_subnet_ids[0] }}
-                  - id: {{ alpha_private_subnet_ids[1] }}
-                  - id: {{ alpha_private_subnet_ids[2] }}
-
-          # Beta Public, Private
-          platform:
-            aws:
-              region: "{{ primary_region }}"
-              vpc:
-                subnets:
-                  - id: {{ beta_public_subnet_ids[0] }}
-                  - id: {{ beta_public_subnet_ids[1] }}
-                  - id: {{ beta_public_subnet_ids[2] }}
-                  - id: {{ beta_private_subnet_ids[0] }}
-                  - id: {{ beta_private_subnet_ids[1] }}
-                  - id: {{ beta_private_subnet_ids[2] }}
- 
-- name: "Configure Test VMs"
-  hosts: test_vms
-  gather_facts: false
-  tasks:
-    - name: "Configure /etc/hosts"
-      become: true
-      loop:
-        - "{{ vars.hostvars.connectivity-test-tor.private_ip_address }} {{ vars.hostvars.connectivity-test-tor.ansible_ssh_host }}"
-        - "{{ vars.hostvars.connectivity-test-alpha.private_ip_address }} {{ vars.hostvars.connectivity-test-alpha.ansible_ssh_host }}"
-        - "{{ vars.hostvars.connectivity-test-beta.private_ip_address }} {{ vars.hostvars.connectivity-test-beta.ansible_ssh_host }}"
-        - "{{ vars.hostvars.bgp-router.private_ip_address }} {{ vars.hostvars.bgp-router.ansible_ssh_host }}"
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        line: "{{ item }}"
-
-    - name: "Configure ~/.ssh/config"
+    - name: "Save Generated Facts"
       ansible.builtin.copy:
-        dest: ".ssh/config"
+        mode: "u=rw,g=r,o=r"
+        dest: "generated_facts.yml"
         content: |
-          Host *
-            User ec2-user
-            IdentityFile ~/key-aws-demo.pem
-
-- name: "Configure the BGP Router VM"
-  hosts: bgp
-  gather_facts: false
-  become: true
-  tasks:
-    - name: "Wait For SSH Connectivity"
-      failed_when: false
-      ansible.builtin.wait_for_connection:
-        timeout: 90
-
-    - name: "Wait For SSH Connectivity"
-      failed_when: false
-      ansible.builtin.wait_for_connection:
-        timeout: 90
-
-    - name: "Wait For SSH Connectivity"
-      ansible.builtin.wait_for_connection:
-        timeout: 90
-
-    - name: "Install FRR"
-      ansible.builtin.dnf:
-        name: frr
-        state: present
-
-    - name: "Configure FRR Daemons"
-      ansible.builtin.lineinfile:
-        path: /etc/frr/daemons
-        search_string: "bgpd=no"
-        line: "bgpd=yes"
-
-    # TODO: Create correct BGP configuration for the AWS Demo
-    - name: "Configure FRR"
-      ansible.builtin.copy:
-        owner: frr
-        group: frr
-        mode: "u=rw,g=r,o="
-        dest: /etc/frr/frr.conf
-        content: |
-            hostname {{ aws_private_dns_name }}
-            ip prefix-list ACCEPT_LAB seq 5 permit 10.1.0.0/16 le 32
-            ip prefix-list ACCEPT_LAB seq 10 permit 10.2.0.0/16 le 32
-            !
-            router bgp 65000
-             bgp router-id 10.3.0.1
-             bgp bestpath as-path multipath-relax
-             neighbor 10.0.101.201 remote-as 65001
-             neighbor 10.0.101.201 shutdown
-             neighbor 10.0.102.201 remote-as 65002
-             !
-             address-family ipv4 unicast
-              neighbor 10.0.101.201 soft-reconfiguration inbound
-              neighbor 10.0.101.201 route-map ACCEPT_LAB in
-              neighbor 10.0.102.201 route-map ACCEPT_LAB in
-              maximum-paths 4
-             exit-address-family
-            exit
-            !
-            route-map ACCEPT_LAB permit 10
-             match ip address prefix-list ACCEPT_LAB
-            exit
-
-    - name: "Enable and Restart the FRR Service"
-      ansible.builtin.service:
-        name: frr
-        enabled: true
-        state: restarted
+          ---
+          # Facts generated during AWS bootstrapping
+          res_vpcs: {{ res_vpcs }}
+          tor_public_subnet_ids: {{ tor_public_subnet_ids }}
+          tor_private_subnet_ids: {{ tor_private_subnet_ids }}
+          tor_tgw_subnet_ids: {{ tor_tgw_subnet_ids }}
+          alpha_public_subnet_ids: {{ alpha_public_subnet_ids }}
+          alpha_private_subnet_ids: {{ alpha_private_subnet_ids }}
+          beta_public_subnet_ids: {{ beta_public_subnet_ids }}
+          beta_private_subnet_ids: {{ beta_private_subnet_ids }}
+          subnet_reservations: {{ subnet_reservations }}
