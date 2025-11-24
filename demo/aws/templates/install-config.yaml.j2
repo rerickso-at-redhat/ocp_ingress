@@ -1,0 +1,39 @@
+---
+additionalTrustBundlePolicy: Proxyonly
+apiVersion: v1
+baseDomain: {{ sandbox_domain }}
+metadata:
+  creationTimestamp: null
+  name: {{ cluster }}
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform:
+    aws:
+  replicas: 3
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+     aws:
+  replicas: 3
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: {{ supernet }}
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  aws:
+    region: {{ primary_region }}
+    vpc:
+      subnets: {{ subnets }}
+publish: External
+pullSecret: '{{ ipi_pull_secret }}'
+sshKey: "{{ ipi_ssh_key }}"
+
