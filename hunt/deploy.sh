@@ -1,7 +1,7 @@
 #!/bin/bash
 
-ALPHA="api.alpha.sandbox728.opentlc.com:6443"
-BETA="api.beta.sandbox728.opentlc.com:6443"
+ALPHA="api.alpha.sandbox1866.opentlc.com:6443"
+BETA="api.beta.sandbox1866.opentlc.com:6443"
 
 # KUBEADMIN
 ALPHA_CONTEXT="default/$(echo $ALPHA | sed s/\\./-/g)/kube:admin" # NOTE: Highly assumptive - demo purposes only
@@ -20,7 +20,7 @@ function main () {
 	oc project default
 
 	echo "Logging into Beta Cluster"
-	oc login --web --server=$CLUSTERB
+	oc login --web --server=$BETA
 	oc project default
 
 	# Alpha Cluster
@@ -38,8 +38,6 @@ function main () {
 	apply_manifests
 	cd ..
 	
-	exit
-
 	# Beta Cluster
 	echo "Using Beta Cluster"
 	oc config use-context $BETA_CONTEXT
