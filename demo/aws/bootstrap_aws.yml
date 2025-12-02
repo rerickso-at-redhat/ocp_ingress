@@ -505,6 +505,10 @@
         description: "Public facing VMs that need SSH access"
         vpc_id: "{{ res_vpcs.results[item].vpc.id }}"
         rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
           - proto: tcp
             ports:
               - 22
@@ -523,6 +527,10 @@
         description: "Private facing VMs that need SSH access"
         vpc_id: "{{ item }}"
         rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
           - proto: tcp
             ports:
               - 22
