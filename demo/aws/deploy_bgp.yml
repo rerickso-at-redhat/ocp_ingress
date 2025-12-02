@@ -32,15 +32,25 @@
         network_interfaces:
           - assign_public_ip: true
 
-    - name: "Create A Security Group For BGP Peering (tor-side)"
+    - name: "Create Security Group For BGP Ingress And Peering (tor-side)"
       amazon.aws.ec2_security_group:
         name: "tor-bgp-peering"
         description: "TOR-side BGP Peering"
         vpc_id: "{{ res_vpcs.results[0].vpc.id  }}"
         rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
           - proto: tcp
             ports: 22 
             cidr_ip: "{{ supernet_clusters }}"
+          #- proto: tcp
+          #  ports: 443
+          #  cidr_ip: "{{ supernet_tor }}"
+          #- proto: tcp
+          #  ports: 80
+          #  cidr_ip: "{{ supernet_tor }}"
           - proto: tcp
             ports: 179 # BGP
             cidr_ip: "{{ supernet_alpha }}"
@@ -88,24 +98,28 @@
         tags:
           Name: "{{ item.eni_name }}"
 
+    # NOTE: Currently not needed, may help targetting worker nodes or assigning interfaces for other purposes
     - name: "Get EC2 Instances"
       register: res_ec2_instances
       amazon.aws.ec2_instance_info:
 
-    - set_fact:
+    - name: "Get Worker Instances"
+      ansible.builtin.set_fact:
         worker_instances: "{{ res_ec2_instances.instances | selectattr('tags.Name', 'match', '.*-worker-.*') }}"
 
-    - name: "Assign A Secondary Interface For BGP Peering To Each Cluster Worker Node"
-      loop: "{{ worker_instances }}"
-      vars:
-        netid: "{{ ((res_eni_tor | combine(res_eni_clusters)).results | selectattr('interface', 'defined') | selectattr('interface.subnet_id', 'equalto', item.subnet_id) | first).interface.id }}"
-        intid: "{{ item.instance_id }}"
-      changed_when: true
-      failed_when: false
-      command:
-        cmd: "aws ec2 attach-network-interface --network-interface-id '{{ netid }}' --instance-id '{{ intid }}' --device-index '1' --network-card-index '0'"
+#    - name: "Assign A Secondary Interface For BGP Peering To Each Cluster Worker Node"
+#      loop: "{{ worker_instances }}"
+#      register: "res_attach_eni"
+#      vars:
+#        netid: "{{ ((res_eni_tor | combine(res_eni_clusters)).results | selectattr('interface', 'defined') | selectattr('interface.subnet_id', 'equalto', item.subnet_id) | first).interface.id }}"
+#        intid: "{{ item.instance_id }}"
+#      changed_when: "'already has an interface attached' not in res_attach_eni.stderr"
+#      failed_when: false
+#      command:
+#        cmd: "aws ec2 attach-network-interface --network-interface-id '{{ netid }}' --instance-id '{{ intid }}' --device-index '1' --network-card-index '0'"
 
-    - name: "Edit Existing '-node-' Security Groups For BGP (tcp 179)"
+    # NOTE: Extremely permissive security group rules for lab purposes (moving bgp connections around easily w/o changing SGs)
+    - name: "Edit Existing '-node-' Security Groups For BGP (tcp 179) and BFD (udp 3784/3785)"
       loop: "{{ res_security_groups.security_groups | selectattr('group_name', 'match', '.*-node') }}"
       amazon.aws.ec2_security_group:
         name: "{{ item.group_name }}"
@@ -115,6 +129,16 @@
         purge_rules_egress: false
         purge_tags: false
         rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
+          - proto: tcp
+            ports: 443
+            cidr_ip: "{{ supernet_clusters }}"
+          - proto: tcp
+            ports: 80
+            cidr_ip: "{{ supernet_clusters }}"
           - proto: tcp
             ports: 179
             cidr_ip: "{{ supernet_tor }}"
@@ -123,7 +147,33 @@
               - 3784 # BFD
               - 3785 # BFD
             cidr_ip: "{{ supernet_tor }}"
+          - proto: tcp
+            ports: 179
+            cidr_ip: "{{ supernet_alpha }}"
+          - proto: udp
+            ports:
+              - 3784 # BFD
+              - 3785 # BFD
+            cidr_ip: "{{ supernet_alpha }}"
+          - proto: tcp
+            ports: 179
+            cidr_ip: "{{ supernet_beta }}"
+          - proto: udp
+            ports:
+              - 3784 # BFD
+              - 3785 # BFD
+            cidr_ip: "{{ supernet_beta }}"
 
+    - name: Initialize the client ec2 instance
+      register: ec2_client
+      amazon.aws.ec2_instance:
+        name: "client"
+        key_name: "key-aws-demo"
+        vpc_subnet_id: "{{ tor_private_subnet_ids[0] }}"
+        instance_type: "t2.small"
+        image_id: "{{ ami_rhel_10 }}"
+        security_group: "private-facing-vms"
+ 
     - name: Initialize the bgp-router ec2 instance
       register: ec2_router_bgp
       amazon.aws.ec2_instance:
@@ -132,46 +182,45 @@
         vpc_subnet_id: "{{ tor_private_subnet_ids[0] }}"
         instance_type: "t2.medium"
         image_id: "{{ ami_rhel_10 }}"
-        #network_interfaces:
-        #  - assign_public_ip: true
-        #    groups:
-        #      - "public-facing-vms"
+        # NOTE: Aweful hard coded indices - 0-9 b/c "subnet_reservations" is 0-9 (tor x 3, alpha x 3, beta x 3)
         network_interfaces_ids:
-          # The first three are the tor interfaces, the next 6 are the alpha/beta interfaces
+          # TOR AZ 1
           - id: "{{ res_eni_tor.results[0].interface.id }}"
             device_index: 0
-        #  - id: "{{ res_eni_tor.results[1].interface.id }}"
-        #    device_index: 1
-        #  - id: "{{ res_eni_tor.results[2].interface.id }}"
-        #    device_index: 2
-          #- subnet_id: "{{ alpha_private_subnet_ids[0] }}"
-          #  private_ip_addresses:
-          #    - primary: false
-          #      private_ip_address: 10.0.0.96
+          # ALPHA AZ 1
+          - id: "{{ res_eni_clusters.results[3].interface.id }}"
+            device_index: 1
+          # BETA AZ 1
+          - id: "{{ res_eni_clusters.results[6].interface.id }}"
+            device_index: 2
 
     - name: "Debug router-bgp Result When Requested (-vv)"
       ansible.builtin.debug:
         var: ec2_router_bgp
         verbosity: 2
 
+    - name: "Add Route 53 Entry For Bastion"
+      amazon.aws.route53:
+        state: present
+        overwrite: true
+        zone: "{{ sandbox_domain }}"
+        type: "A"
+        record: "bastion.{{ sandbox_domain }}"
+        value:
+          - "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
+
     # TODO: the instances must be running to have a public IP available to add the host ... 
-    - name: "Add the Test AWS hosts to the Ansible Inventory"
+    - name: "Add the Bastion AWS host to the Ansible Inventory"
       ansible.builtin.add_host:
         hostname: "bastion"
         groups:
           - "test_vms"
         ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_dns_name }}"
         ansible_ssh_port: 22
-        ansible_host_key_checking: false
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=false"
         ansible_user: "ec2-user"
-        ansible_ssh_private_key_file: "key-aws-demo.pem"
+        ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
         public_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
-
-    - debug:
-        var: ec2_router_bgp.instances[0]
-
-    - debug:
-        var: vars.hostvars
 
     # TODO: copy the key over to the bastion
     - name: "Add the BGP AWS host to the Ansible Inventory"
@@ -183,30 +232,31 @@
         ansible_ssh_port: 22
         ansible_host_key_checking: false
         ansible_user: "ec2-user"
-        ansible_ssh_private_key_file: "key-aws-demo.pem"
+        ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
         aws_private_dns_name: "{{ ec2_router_bgp.instances[0].network_interfaces[0].private_dns_name }}"
-        ansible_ssh_common_args: "-o ProxyCommand='ssh -i key-aws-demo.pem -p 22 -W %h:%p -q ec2-user@{{ hostvars['bastion']['ansible_ssh_host']}}'"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand='ssh -i secrets/key-aws-demo.pem -p 22 -W %h:%p -o StrictHostKeyChecking=no -q ec2-user@{{ hostvars['bastion']['ansible_ssh_host']}}'"
+        worker_instances: "{{ worker_instances }}" # For BGP Config
 
     # NOTE: maybe rsync content from the bastion to the test nodes
- 
+
 - name: "Configure the BGP Router VM"
   hosts: bgp
   gather_facts: false
   become: true
   tasks:
-#    - name: "Wait For SSH Connectivity"
-#      failed_when: false
-#      ansible.builtin.wait_for_connection:
-#        timeout: 90
-#
-#    - name: "Wait For SSH Connectivity"
-#      failed_when: false
-#      ansible.builtin.wait_for_connection:
-#        timeout: 90
-#
-#    - name: "Wait For SSH Connectivity"
-#      ansible.builtin.wait_for_connection:
-#        timeout: 90
+    - name: "Wait For SSH Connectivity"
+      failed_when: false
+      ansible.builtin.wait_for_connection:
+        timeout: 90
+
+    - name: "Wait For SSH Connectivity"
+      failed_when: false
+      ansible.builtin.wait_for_connection:
+        timeout: 90
+
+    - name: "Wait For SSH Connectivity"
+      ansible.builtin.wait_for_connection:
+        timeout: 90
 
     - name: "Install FRR"
       ansible.builtin.dnf:
@@ -219,55 +269,36 @@
         search_string: "bgpd=no"
         line: "bgpd=yes"
 
+    # TODO: get prefix list addresses via var
     - name: "Configure FRR"
+      vars:
+        neighbor_alpha_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*') | first).network_interfaces[0].private_ip_address }}"
+        neighbor_alpha_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*') | first).network_interfaces[0].private_dns_name }}"
+        neighbor_beta_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*') | first).network_interfaces[0].private_ip_address }}"
+        neighbor_beta_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*') | first).network_interfaces[0].private_dns_name }}"
       ansible.builtin.copy:
         owner: frr
         group: frr
         mode: "u=rw,g=r,o="
         dest: /etc/frr/frr.conf
-        # TODO: TBD but for each AZ, the router id and two tor peers should change but the rest of alpha/beta should stay the same
         content: |
             hostname {{ aws_private_dns_name }}
-            ip prefix-list ACCEPT_CLUSTERS seq 5 permit 10.1.0.0/16 le 32
-            ip prefix-list ACCEPT_CLUSTERS seq 10 permit 10.2.0.0/16 le 32
+            ip prefix-list ACCEPT_CLUSTERS seq 5 permit 10.0.0.0/16 le 32
+            ip prefix-list ACCEPT_CLUSTERS seq 10 permit 10.1.0.0/16 le 32
+            ip prefix-list ACCEPT_CLUSTERS seq 15 permit 10.2.0.0/16 le 32
             !
             router bgp 65000
              bgp router-id 10.0.0.69
              bgp bestpath as-path multipath-relax
-             ! todo/ex. neighbor 10.0.32.96 remote-as 65000
-             ! todo/ex. neighbor 10.0.64.96 remote-as 65000
-             neighbor 10.1.0.96 remote-as 65001
-             neighbor 10.1.32.96 remote-as 65001
-             neighbor 10.1.64.96 remote-as 65001
-             neighbor 10.2.0.96 remote-as 65002
-             neighbor 10.2.32.96 remote-as 65002
-             neighbor 10.2.64.96 remote-as 65002
-             ! TEST
-             neighbor 10.1.18.20 remote-as 65001
-             neighbor 10.1.18.20 ebgp-multihop 255
-             ! TEST
+             neighbor {{ neighbor_alpha_ip }} remote-as 65001
+             neighbor {{ neighbor_beta_ip }} remote-as 65002
              address-family ipv4 unicast
-              neighbor 10.1.0.96 soft-reconfiguration inbound
-              neighbor 10.1.0.96 route-map ACCEPT_CLUSTERS in
+              neighbor {{ neighbor_alpha_ip }} soft-reconfiguration inbound
+              neighbor {{ neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
               !
-              neighbor 10.1.32.96 soft-reconfiguration inbound
-              neighbor 10.1.32.96 route-map ACCEPT_CLUSTERS in
+              neighbor {{ neighbor_beta_ip }} soft-reconfiguration inbound
+              neighbor {{ neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
               !
-              neighbor 10.1.64.96 soft-reconfiguration inbound
-              neighbor 10.1.64.96 route-map ACCEPT_CLUSTERS in
-              !
-              neighbor 10.2.0.96 soft-reconfiguration inbound
-              neighbor 10.2.32.96 route-map ACCEPT_CLUSTERS in
-              !
-              neighbor 10.2.32.96 soft-reconfiguration inbound
-              neighbor 10.2.32.96 route-map ACCEPT_CLUSTERS in
-              !
-              neighbor 10.2.64.96 soft-reconfiguration inbound
-              neighbor 10.2.64.96 route-map ACCEPT_CLUSTERS in
-              ! TEST
-              neighbor 10.1.18.20 soft-reconfiguration inbound
-              neighbor 10.1.18.20 route-map ACCEPT_CLUSTERS in
-              ! TEST
               maximum-paths 4
              exit-address-family
             exit
