@@ -1,0 +1,13 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: anycast-advert
+  namespace: metallb-system
+spec:
+  aggregationLength: 32
+  aggregationLengthV6: 128
+  ipAddressPools:
+  - anycast-address-pool
+  peers:
+  - alpha-us-east-2a 

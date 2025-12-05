@@ -1,0 +1,18 @@
+# Example alpha configuration
+# Values meant to be overridden by each cluster/neighbor pair
+# ex. alpha and beta are two separate clusters so they wouldnt be in the same chart
+---
+metallb:
+  ipaddresspool:
+    name: "anycast-address-pool"
+    addresses:
+      - "10.255.255.0/24"
+  bgppeers:
+    - name: "alpha-us-east-2a"
+      myASN: 65100
+      peerASN: 65000
+      peerAddress: 10.1.0.96
+    - name: "beta-us-east-2a"
+      myASN: 65200
+      peerASN: 65000
+      peerAddress: 10.2.0.96

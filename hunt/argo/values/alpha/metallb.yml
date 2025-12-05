@@ -1,0 +1,11 @@
+---
+metallb:
+  ipaddresspool:
+    name: "anycast-address-pool"
+    addresses:
+      - "10.255.255.0/24"
+  bgppeers:
+    - name: "alpha-us-east-2a"
+      myASN: 65100
+      peerASN: 65000
+      peerAddress: 10.1.0.96

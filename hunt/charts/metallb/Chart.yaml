@@ -1,0 +1,8 @@
+---
+apiVersion: v2
+name: metallb
+version: 1.0.0
+#kubeVersion: ">= 4.19.0"
+description: Deploy MetalLB in BGP/FRR mode to advertise Gateway API's anycast service gateways
+type: application
+icon: https://metallb.io/images/logo/metallb-white.png
