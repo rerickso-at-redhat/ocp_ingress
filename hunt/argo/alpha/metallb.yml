@@ -23,5 +23,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    destination:
-      name: in-cluster
+  destination:
+    name: in-cluster
