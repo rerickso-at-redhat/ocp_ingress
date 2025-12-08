@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/rerickso-at-redhat/ocp_ingress'
+    targetRevision: e2e
+    path: hunt/metallb
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - managedNamespaceMetadata=true    
+      - Replace=true
+      - PruneLast=true            
+    automated:
+      prune: true
+      selfHeal: true
+  destination:
+    name: in-cluster
+
