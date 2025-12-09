@@ -4,6 +4,8 @@ kind: BGPAdvertisement
 metadata:
   name: anycast-advert
   namespace: metallb-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   aggregationLength: 32
   aggregationLengthV6: 128
