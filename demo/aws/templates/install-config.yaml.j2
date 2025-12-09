@@ -11,13 +11,15 @@ compute:
   name: worker
   platform:
     aws:
+      type: m6i.large # 2c/8gb (minimum)
   replicas: 3
 controlPlane:
   architecture: amd64
   hyperthreading: Enabled
   name: master
   platform:
-     aws:
+    aws:
+      type: m6i.xlarge # 4c/16gb (minimum)
   replicas: 3
 networking:
   clusterNetwork:
@@ -30,9 +32,29 @@ networking:
   - 172.30.0.0/16
 platform:
   aws:
+    {% if cluster == 'alpha' %}
+    lbType: NLB
+    {% endif %}
     region: {{ primary_region }}
+    #propagateUserTags: true # May be helpful or harmful
+    userTags:
+      ClusterName: "{{ cluster }}"
     vpc:
-      subnets: {{ subnets }}
+      subnets:
+        # The docs are terrible for the roles key
+        # SEE: https://github.com/openshift/installer/blob/f436744ad5c31e4a616b2501ad7c20c575b47f75/pkg/types/aws/platform.go
+        # SEE: https://github.com/openshift/enhancements/blob/30f44ee0cd57dc4ba3b72e10c0b8f1614970d0e0/enhancements/installer/aws-lb-subnet-selection.md#workflow-description
+        # Private
+        - id: {{ subnets.private }}
+          roles:
+            - type: ClusterNode
+            - type: ControlPlaneInternalLB
+        # Public
+        - id: {{ subnets.public }}
+          roles:
+            - type: BootstrapNode
+            - type: IngressControllerLB
+            - type: ControlPlaneExternalLB
 publish: External
 pullSecret: '{{ ipi_pull_secret }}'
 sshKey: "{{ ipi_ssh_key }}"
