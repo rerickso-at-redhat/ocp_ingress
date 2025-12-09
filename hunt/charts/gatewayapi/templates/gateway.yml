@@ -4,6 +4,8 @@ kind: Gateway
 metadata:
   namespace: "{{ .namespace }}"
   name: "{{ .name }}"
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   gatewayClassName: openshift-default
   #addresses:
