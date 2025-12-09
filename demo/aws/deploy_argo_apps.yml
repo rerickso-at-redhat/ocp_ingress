@@ -27,20 +27,73 @@
         path: "../../hunt/clusters/{{ item }}"
         mode: '0755'
 
-    - name: "Create Argo Application Manifests"
+    # MetalLB
+    - name: "Create Argo Application Manifests - {{ app_name }}"
       loop:
         - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
-          supernet_anycast: "{{ supernet_anycast }}"
+          values_object:
+            metallb:
+              ipaddresspool:
+                name: "anycast-address-pool"
+                addresses:
+                  - "{{ supernet_anycast }}"
+              bgppeers:
+                - name: "alpha-us-east-2a"
+                  myASN: 65100
+                  peerASN: 65000
+                  peerAddress: 10.1.0.96
         - cluster_aws_name: "{{ beta_cluster_aws_name }}"
-          supernet_anycast: "{{ supernet_anycast }}"
+          values_object:
+            metallb:
+              ipaddresspool:
+                name: "anycast-address-pool"
+                addresses:
+                  - "{{ supernet_anycast }}"
+              bgppeers:
+                - name: "beta-us-east-2a"
+                  myASN: 65200
+                  peerASN: 65000
+                  peerAddress: 10.2.0.96
       vars:
+        app_name: "metallb"
         cluster_aws_name: "{{ item.cluster_aws_name }}"
-        anycast_supernet: "{{ item.anycast_supernet }}"
-      ansible.builtin.template:
-        src: "app.metallb.yml.j2"
+        values_object: "{{ item.values_object }}"
+     ansible.builtin.template:
+        src: "app.{{ app_name }}.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ item.cluster_aws_name }}/app.metallb.yml"
+        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
+
+    # Gateway API
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop:
+        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+      vars:
+        app_name: "gatewayapi"
+        cluster_aws_name: "{{ item.cluster_aws_name }}"
+        values_object:
+          gatewayapi:
+            namespace: "anycast-shared-gateway"
+            name: "anycast"
+            # NOTE: Very limited customization scope - extend template to fully use gatewayapi
+            gateways:
+             - namespace: "anycast_shared_gateway"
+               name: "anycast"
+               ipaddress: "10.255.255.5"
+               hostname: "anycast.{{sandbox_domain}}"
+      ansible.builtin.template:
+        src: "app.{{ app_name }}.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
+
+    # RHSI
+
+    # APP 1
+
+    # APP 2
 
 #    - name: "Commit Argo Apps To Repo"
 
 #    - name: "Push Argo Apps To Repo"
+
+#    - name: "Deploy the Argo App Templates to OpenShift"

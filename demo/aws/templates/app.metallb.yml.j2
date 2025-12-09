@@ -21,14 +21,4 @@ spec:
     targetRevision: "{{ git_repo_revision }}"
     path: "hunt/charts/metallb"
     helm:
-      valuesObject:
-        metallb:
-          ipaddresspool:
-            name: "anycast-address-pool"
-            addresses:
-              - "{{ supernet_anycast }}"
-          bgppeers:
-            - name: "alpha-us-east-2a"
-              myASN: 65100
-              peerASN: 65000
-              peerAddress: 10.1.0.96
+      valuesObject: {{ values_object }}
