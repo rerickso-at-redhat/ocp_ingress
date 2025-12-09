@@ -57,9 +57,10 @@
       vars:
         app_name: "metallb"
         cluster_aws_name: "{{ item.cluster_aws_name }}"
-        values_object: "{{ item.values_object }}"
-     ansible.builtin.template:
-        src: "app.{{ app_name }}.yml.j2"
+        values_object: |
+          {{ item.values_object }}
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
         dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
@@ -82,7 +83,7 @@
                ipaddress: "10.255.255.5"
                hostname: "anycast.{{sandbox_domain}}"
       ansible.builtin.template:
-        src: "app.{{ app_name }}.yml.j2"
+        src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
         dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
