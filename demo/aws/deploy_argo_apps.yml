@@ -1,0 +1,46 @@
+---
+- name: Deploy Argo Apps
+  gather_facts: false
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars.yml
+  vars:
+    git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
+    git_repo_revision: "e2e"
+  tasks:
+    - name: "Gather EC2 Instances Names"
+      register: res_instances
+      amazon.aws.ec2_instance_info:
+
+    - name: "Set Cluster AWS Name Facts"
+      ansible.builtin.set_fact:
+        alpha_cluster_aws_name: "{{ (res_instances.instances | selectattr('tags.Name', 'match', 'alpha-.*-worker') | first).tags.Name.split('-worker')[0] }}"
+        beta_cluster_aws_name: "{{ (res_instances.instances | selectattr('tags.Name', 'match', 'beta-.*-worker') | first).tags.Name.split('-worker')[0] }}"
+
+    - name: "Create Directories For Each Cluster"
+      loop:
+        - "{{ alpha_cluster_aws_name }}"
+        - "{{ beta_cluster_aws_name }}"
+      ansible.builtin.file:
+        state: directory
+        path: "../../hunt/clusters/{{ item }}"
+        mode: '0755'
+
+    - name: "Create Argo Application Manifests"
+      loop:
+        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+          supernet_anycast: "{{ supernet_anycast }}"
+        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+          supernet_anycast: "{{ supernet_anycast }}"
+      vars:
+        cluster_aws_name: "{{ item.cluster_aws_name }}"
+        anycast_supernet: "{{ item.anycast_supernet }}"
+      ansible.builtin.template:
+        src: "app.metallb.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "../../hunt/clusters/{{ item.cluster_aws_name }}/app.metallb.yml"
+
+#    - name: "Commit Argo Apps To Repo"
+
+#    - name: "Push Argo Apps To Repo"
