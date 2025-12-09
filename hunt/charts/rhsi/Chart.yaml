@@ -2,7 +2,6 @@
 apiVersion: v2
 name: rhsi
 version: 1.0.0
-kubeVersion: >= 4.19.0
 description: Deploy Red Hat Service Interconnect to establish cross cluster networking for configured applications
 type: application
 icon: https://skupper.io/images/skupper-logo.svg
