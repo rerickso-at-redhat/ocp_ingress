@@ -10,5 +10,5 @@ spec:
   name: skupper-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: "{{ .Values.rhsi.starting_csv }}"
+  #startingCSV: "{{ .Values.rhsi.starting_csv }}"
 ...
