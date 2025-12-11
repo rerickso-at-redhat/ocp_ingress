@@ -1,3 +1,4 @@
+{{ if .Values.app.local }}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -17,3 +18,4 @@ spec:
   tls:
     insecureEdgeTerminationPolicy: Allow
     termination: edge
+{{ end }}
