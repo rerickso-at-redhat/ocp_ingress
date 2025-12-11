@@ -7,7 +7,6 @@ metadata:
   name: {{ .Values.app.name }}
   namespace: {{ .Values.app.namespace }}
 spec:
-  #enable: true
   linkAccess: default
 ...
 
@@ -34,7 +33,6 @@ metadata:
   name: {{ .Values.app.name }}
   namespace: {{ .Values.app.name }}
 spec:
-  enable: false
   linkAccess: none
 ...
 
