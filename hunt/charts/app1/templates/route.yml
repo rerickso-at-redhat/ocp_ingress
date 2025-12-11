@@ -2,15 +2,15 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    app: hello-world
-  name: hello-world
-  namespace: {{ .Values.app.name }}
+    app: {{ .Values.app.name }}
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
 spec:
   port:
     targetPort: 8080-tcp
   to:
     kind: Service
-    name: hello-world
+    name: {{ .Values.app.name }}
     weight: 100
   wildcardPolicy: None
   tls:

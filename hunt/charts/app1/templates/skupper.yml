@@ -2,10 +2,10 @@
 apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
-  name: app1
-  namespace: app1
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
 spec:
-  enable: true
+  #enable: true
   linkAccess: default
 ...
 
@@ -14,12 +14,12 @@ apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   generation: 1
-  name: app1
-  namespace: app1
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.name }}
 spec:
   port: 8080
-  routingKey: app1
-  selector: deployment=app1
+  routingKey: {{ .Values.app.name }}
+  selector: deployment={{ .Values.app.name }}
   type: tcp
 ...
 
