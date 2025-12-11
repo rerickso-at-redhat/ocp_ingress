@@ -6,6 +6,7 @@ metadata:
   name: {{ .Values.app.name }}
   namespace: {{ .Values.app.namespace }}
 spec:
+  host: {{ .Values.app.route.host }}
   port:
     targetPort: 8080-tcp
   to:
