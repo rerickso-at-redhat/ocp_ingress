@@ -1,5 +1,5 @@
 # Apps local to the cluster require a site and connector
-{{ if eq .Values.local true }}
+{{ if .Values.local }}
 ---
 apiVersion: skupper.io/v2alpha1
 kind: Site
