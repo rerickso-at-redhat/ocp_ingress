@@ -4,6 +4,7 @@ metadata:
   labels:
     app: hello-world
   name: hello-world
+  namespace: {{ .Values.app.name }}
 spec:
   port:
     targetPort: 8080-tcp

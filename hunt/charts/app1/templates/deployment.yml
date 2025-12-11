@@ -4,6 +4,7 @@ metadata:
   labels:
     application: hello-world
   name: hello-world
+  namespace: {{ .Values.app.name }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
