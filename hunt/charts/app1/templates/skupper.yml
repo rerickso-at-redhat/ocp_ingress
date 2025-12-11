@@ -1,3 +1,5 @@
+# Apps local to the cluster require a site and connector
+{{ if eq .Values.local true }}
 ---
 apiVersion: skupper.io/v2alpha1
 kind: Site
@@ -23,3 +25,29 @@ spec:
   type: tcp
 ...
 
+# Apps not local to the cluster require a site and a listener
+{{ else }}
+---
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.name }}
+spec:
+  enable: false
+  linkAccess: none
+...
+
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.name }}
+spec:
+  routingKey: {{ .Values.app.name }}
+  host: {{ .Values.app.name }}
+  port: 8080
+  type: tcp
+...
+{{ end }}
