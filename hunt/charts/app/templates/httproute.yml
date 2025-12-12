@@ -18,3 +18,10 @@ spec:
     backendRefs:
     - name: {{ .Values.app.name }}
       port: {{ .Values.app.httproute.port }}
+    # The hello app does not have an /app1 page so rewrite it to / which will pull the index
+    filters:
+      - type: URLRewrite
+        urlRewrite:
+          path:
+            type: ReplaceFullPath
+            replaceFullPath: /
