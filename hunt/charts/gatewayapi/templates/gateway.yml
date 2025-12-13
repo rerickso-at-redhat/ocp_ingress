@@ -8,9 +8,9 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   gatewayClassName: openshift-default
-  #addresses:
-  #  - type: IPAddress
-  #    value: {{ .ipaddress }}
+  addresses:
+    - type: IPAddress
+      value: {{ .ipaddress }}
   listeners:
   - name: http
     port: 80
