@@ -8,6 +8,12 @@
   vars:
     git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
     git_repo_revision: "e2e"
+    argo_manifests:
+      - "app.metallb.yml"
+      - "app.gatewayapi.yml"
+      - "app.rhsi.yml"
+      - "app.app1.yml"
+      - "app.app2.yml"
   tasks:
     - name: "Gather EC2 Instances Names"
       register: res_instances
@@ -39,7 +45,7 @@
                   - "{{ supernet_anycast }}"
               bgppeers:
                 - name: "alpha-us-east-2a"
-                  myASN: 65100
+                  myASN: 65001
                   peerASN: 65000
                   peerAddress: 10.1.0.96
         - cluster_aws_name: "{{ beta_cluster_aws_name }}"
@@ -51,11 +57,12 @@
                   - "{{ supernet_anycast }}"
               bgppeers:
                 - name: "beta-us-east-2a"
-                  myASN: 65200
+                  myASN: 65002
                   peerASN: 65000
                   peerAddress: 10.2.0.96
       vars:
         app_name: "metallb"
+        chart_name: "metallb"
         cluster_aws_name: "{{ item.cluster_aws_name }}"
         values_object: |
           {{ item.values_object }}
@@ -71,30 +78,122 @@
         - cluster_aws_name: "{{ beta_cluster_aws_name }}"
       vars:
         app_name: "gatewayapi"
+        chart_name: "gatewayapi"
         cluster_aws_name: "{{ item.cluster_aws_name }}"
         values_object:
           gatewayapi:
-            namespace: "anycast-shared-gateway"
-            name: "anycast"
+            namespace: "anycast-gateways"
             # NOTE: Very limited customization scope - extend template to fully use gatewayapi
             gateways:
-             - namespace: "anycast_shared_gateway"
-               name: "anycast"
-               ipaddress: "10.255.255.5"
+             - namespace: "anycast-gateways"
+               name: "anycast-gateway-shared"
+               ipaddress: "10.255.255.1"
                hostname: "anycast.{{sandbox_domain}}"
+             - namespace: "anycast-gateways"
+               name: "anycast-gateway-dedicated-app1"
+               ipaddress: "10.255.255.2"
+               hostname: "app1-anycast.{{sandbox_domain}}"
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
         dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
     # RHSI
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop:
+        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+      vars:
+        app_name: "rhsi"
+        chart_name: "rhsi"
+        cluster_aws_name: "{{ item.cluster_aws_name }}"
+        values_object:
+          rhsi:
+            starting_csv: "skupper-operator.v2.1.2-rh-2"
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
     # APP 1
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop:
+        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+          local: true
+        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+          local: false
+      vars:
+        app_name: "app1"
+        chart_name: "app"
+        cluster_aws_name: "{{ item.cluster_aws_name }}"
+        values_object:
+          app:
+            local: "{{ item.local }}"
+            namespace: app1
+            name: app1
+            route:
+              host: "app1.apps.alpha.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
     # APP 2
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop:
+        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+          local: false
+        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+          local: true
+      vars:
+        app_name: "app2"
+        chart_name: "app"
+        cluster_aws_name: "{{ item.cluster_aws_name }}"
+        values_object:
+          app:
+            local: "{{ item.local }}"
+            namespace: app2
+            name: app2
+            route:
+              host: "app2.apps.beta.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
 
 #    - name: "Commit Argo Apps To Repo"
 
 #    - name: "Push Argo Apps To Repo"
 
-#    - name: "Deploy the Argo App Templates to OpenShift"
+    - name: "Ensure OpenShift GitOps (Argo) is Available"
+      register: res_argo
+      loop:
+        - "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+        - "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+      kubernetes.core.k8s:
+        kubeconfig: "{{ item }}"
+        state: present
+        src: "../../hunt/openshift-gitops-operator.yml"
+
+    - name: "Pause for OpenShift GitOps to be ready (simple 60 second pause)"
+      when: res_argo.changed
+      pause:
+        seconds: 60
+
+    - name: "Deploy the Argo App Templates - alpha"
+      loop: "{{ argo_manifests }}"
+      kubernetes.core.k8s:
+        kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+        state: present
+        src: "../../hunt/clusters/{{ alpha_cluster_aws_name }}/{{ item }}"
+
+    - name: "Deploy the Argo App Templates - beta"
+      loop: "{{ argo_manifests }}"
+      kubernetes.core.k8s:
+        kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+        state: present
+        src: "../../hunt/clusters/{{ beta_cluster_aws_name }}/{{ item }}"
