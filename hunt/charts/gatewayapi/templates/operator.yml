@@ -14,7 +14,7 @@ spec:
       requests:
         cpu: 10m
         memory: 64Mi
-  installPlanApproval: Automatic
+  #installPlanApproval: Automatic # Seemingly the only option is Manual
   name: servicemeshoperator3
   source: redhat-operators
   sourceNamespace: openshift-marketplace
