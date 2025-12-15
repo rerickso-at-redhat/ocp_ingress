@@ -12,4 +12,6 @@ spec:
   ipAddressPools:
   - anycast-address-pool
   peers:
-  - alpha-us-east-2a 
+  {{- range $.Values.metall.bgppeers }}
+  - {{ .name }}
+  {{- end }}
