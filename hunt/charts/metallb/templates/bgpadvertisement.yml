@@ -12,6 +12,6 @@ spec:
   ipAddressPools:
   - anycast-address-pool
   peers:
-  {{- range $.Values.metall.bgppeers }}
+  {{- range $.Values.metallb.bgppeers }}
   - {{ .name }}
   {{- end }}
