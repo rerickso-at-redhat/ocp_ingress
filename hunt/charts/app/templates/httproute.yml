@@ -32,7 +32,7 @@ metadata:
   namespace: {{ .Values.app.name }}
 spec:
   parentRefs:
-  - name: anycast-gateway-dedicated-app1
+  - name: anycast-gateway-dedicated-{{ .Values.app.name }}
     namespace: anycast-gateways
   rules:
   - backendRefs:
