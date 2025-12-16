@@ -1,3 +1,4 @@
+# yamllint disable rule:line-length
 ---
 # Purpose:
 # This playbook bootstraps enough custom AWS networking to deploy multiple OpenShift clusters in a BGP Anycast Ingress Scenario
@@ -10,8 +11,6 @@
   vars_files:
     - "vars.yml"
     - "secrets/secrets.yml" # Not saved to repo - see secrets.yml.example for requirements
-  collections:
-    - custom_aws.ec2
   tasks:
     - name: "Initialize VPC"
       register: res_vpc
@@ -40,8 +39,6 @@
         az: "{{ item.az }}"
         cidr: "{{ item.cidr }}"
         purge_tags: false
-        tags:
-          Name: "{{ item.name }}"
         tags:
           Name: "{{ item.name }}"
           kubernetes.io/cluster/unmanaged: "{{ true if '-tor-' in item.name else omit }}"
@@ -94,7 +91,7 @@
       changed_when: true # Only runs when a change is needed
       ansible.builtin.command:
         cmd: "aws ec2 create-subnet-cidr-reservation --cidr '{{ item.cidr }}' --reservation-type 'explicit' --subnet-id '{{ item.subnet_id }}'"
-    
+
     # Create a NAT Gateway for each availability zone
     # NOTE: AWS accounts are normally limited to 5 elastic ip addresses
     - name: Initialize VPC NAT Gateways
@@ -131,9 +128,9 @@
       amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ res_vpc.vpc.id }}"
         subnets:
-        - "{{ subnet_id_tor_public }}"
-        - "{{ subnet_id_alpha_public }}"
-        - "{{ subnet_id_beta_public }}"
+          - "{{ subnet_id_tor_public }}"
+          - "{{ subnet_id_alpha_public }}"
+          - "{{ subnet_id_beta_public }}"
         routes:
           - dest: 0.0.0.0/0
             gateway_id: "{{ res_igw.gateway_id }}"
@@ -156,7 +153,7 @@
       amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ res_vpc.vpc.id }}"
         subnets:
-          - "{{ item.subnet_id  }}"
+          - "{{ item.subnet_id }}"
         routes:
           - dest: 0.0.0.0/0
             gateway_id: "{{ ngw_ids[item.index] }}"
