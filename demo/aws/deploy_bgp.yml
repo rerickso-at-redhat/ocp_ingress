@@ -1,3 +1,4 @@
+# yamllint disable rule:colons rule:line-length
 ---
 - name: "Deploy BGP Router and BGP Interfaces"
   hosts: localhost
@@ -5,10 +6,13 @@
   vars_files:
     - "vars.yml"
     - "generated_facts.yml"
-  collections:
-    - custom_aws.ec2
+  handlers:
+    - name: "Restart FRR"
+      ansible.builtin.service:
+        name: frr
+        state: restarted
   tasks:
-    - name: Initialize The Demo SSH Key 
+    - name: Initialize The Demo SSH Key
       amazon.aws.ec2_key:
         name: key-aws-demo
       register: res_key
@@ -36,21 +40,21 @@
       amazon.aws.ec2_security_group:
         name: "tor-bgp-peering"
         description: "TOR-side BGP Peering"
-        vpc_id: "{{ res_vpc.vpc.id  }}"
+        vpc_id: "{{ res_vpc.vpc.id }}"
         rules:
           - proto: icmp
             icmp_code: -1 # All
             icmp_type: -1 # All
             cidr_ip: "{{ supernet_clusters }}"
           - proto: tcp
-            ports: 22 
+            ports: 22
             cidr_ip: "{{ supernet_clusters }}"
-          #- proto: tcp
-          #  ports: 443
-          #  cidr_ip: "{{ supernet_tor }}"
-          #- proto: tcp
-          #  ports: 80
-          #  cidr_ip: "{{ supernet_tor }}"
+          - proto: tcp
+            ports: 443
+            cidr_ip: "{{ supernet_tor }}"
+          - proto: tcp
+            ports: 80
+            cidr_ip: "{{ supernet_tor }}"
           - proto: tcp
             ports: 179 # BGP
             cidr_ip: "{{ supernet_alpha }}"
@@ -67,7 +71,7 @@
               - 3784 # BFD
               - 3785 # BFD
             cidr_ip: "{{ supernet_beta }}"
- 
+
     - name: "Get Security Groups"
       register: res_security_groups
       amazon.aws.ec2_security_group_info:
@@ -128,11 +132,9 @@
         # TOR gets the manually built security group only
         # Alpha gets the alpha node security group only
         # Beta gets the beta node security group only
-        security_groups: "{{
-          ['tor-bgp-peering'] if item.cluster == 'tor' else [] +
-          [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'alpha' else [] +
-          [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'beta' else [] 
-        }}"
+        security_groups: "{{ ['tor-bgp-peering'] if item.cluster == 'tor' else [] + [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster
+          + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'alpha' else [] + [res_security_groups.security_groups | selectattr('group_name',
+          'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'beta' else [] }}"
         tags:
           Name: "{{ item.eni_name }}"
 
@@ -143,6 +145,14 @@
     - name: "Get Worker Instances"
       ansible.builtin.set_fact:
         worker_instances: "{{ res_ec2_instances.instances | selectattr('tags.Name', 'match', '.*-worker-.*') }}"
+
+    # Each worker assumed to have one and only one interface (default IPI behavior)
+    - name: "Disable 'source/destination checking' For Each Worker Node"
+      loop: "{{ worker_instances | map(attribute='network_interfaces.0.network_interface_id') }}"
+      changed_when: true # currently always runs
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
 
 #    - name: "Assign A Secondary Interface For BGP Peering To Each Cluster Worker Node"
 #      loop: "{{ worker_instances }}"
@@ -164,7 +174,7 @@
         instance_type: "t2.small"
         image_id: "{{ ami_rhel_10 }}"
         security_group: "private-facing-vms"
- 
+
     - name: Initialize the bgp-router ec2 instance
       register: ec2_router_bgp
       amazon.aws.ec2_instance:
@@ -195,7 +205,7 @@
         value:
           - "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
 
-    # TODO: the instances must be running to have a public IP available to add the host ... 
+    # TODO: the instances must be running to have a public IP available to add the host ...
     - name: "Add the Bastion AWS host to the Ansible Inventory"
       ansible.builtin.add_host:
         hostname: "tor-bastion"
@@ -208,9 +218,6 @@
         ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
         public_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
 
-    - debug:
-        var: ec2_router_bgp
-
     # TODO: copy the key over to the bastion
     - name: "Add the BGP AWS host to the Ansible Inventory"
       ansible.builtin.add_host:
@@ -222,14 +229,10 @@
         ansible_host_key_checking: false
         ansible_user: "ec2-user"
         ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand='ssh -i secrets/key-aws-demo.pem -p 22 -W %h:%p -o StrictHostKeyChecking=no -q ec2-user@{{ hostvars['tor-bastion']['ansible_ssh_host']}}'"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand='ssh -i secrets/key-aws-demo.pem -p 22 -W %h:%p -o StrictHostKeyChecking=no -q ec2-user@{{ hostvars['tor-bastion']['ansible_ssh_host'] }}'"
         aws_private_dns_name: "{{ (ec2_router_bgp.instances[0].network_interfaces | selectattr('private_ip_address', 'equalto', vpc.dhcp_res_router_bgp_tor_private.split('/')[0]))[0].private_dns_name }}"
         worker_instances: "{{ worker_instances }}" # For BGP Config
     # NOTE: maybe rsync content from the bastion to the test nodes
-
-    - name: "Debug Hostvars"
-      debug:
-        var: hostvars
 
 - name: "Configure the BGP Router VM"
   hosts: bgp
@@ -250,16 +253,25 @@
         timeout: 90
 
     - name: "Enable IP Forwarding"
+      register: res_sysctl
       ansible.builtin.copy:
         owner: root
         group: root
         mode: "u=rw,g=r,o="
         dest: /etc/sysctl.d/999-forwarding.conf
+        # Disabling RP Fitlers may or may not be needed depending on your system
         content: |
           net.ipv4.conf.all.forwarding=1
           net.ipv6.conf.all.forwarding=1
+          net.ipv4.conf.all.rp_filter=1
+          net.ipv4.conf.default.rp_filter=1
+          net.ipv4.conf.lo.rp_filter=1
+          net.ipv4.conf.enX0.rp_filter=1
+          net.ipv4.conf.enX1.rp_filter=1
+          net.ipv4.conf.enX2.rp_filter=1
 
     - name: "Initialize New sysctl Conf"
+      changed_when: "res_sysctl.changed" # noqa: no-handler
       ansible.builtin.command:
         cmd: "sysctl -p /etc/sysctl.d/999-forwarding.conf"
 
@@ -269,81 +281,88 @@
         state: present
 
     - name: "Configure FRR Daemons - bgpd"
+      notify:
+        - "Restart FRR"
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
         search_string: "bgpd=no"
         line: "bgpd=yes"
 
     - name: "Configure FRR Daemons - bfdd"
+      notify:
+        - "Restart FRR"
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
         search_string: "bfdd=no"
         line: "bfdd=yes"
 
     # TODO: get prefix list addresses via var
+    # yamllint disable rule:colons
     - name: "Configure FRR"
+      notify:
+        - "Restart FRR"
       vars:
         # Alpha
-        first_neighbor_alpha_ip:   "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_ip_address }}"
-        first_neighbor_alpha_dns:  "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_dns_name }}"
-        second_neighbor_alpha_ip:  "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_ip_address }}"
+        first_neighbor_alpha_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_ip_address }}"
+        first_neighbor_alpha_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_dns_name }}"
+        second_neighbor_alpha_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_ip_address }}"
         second_neighbor_alpha_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_dns_name }}"
-        third_neighbor_alpha_ip:   "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_ip_address }}"
-        third_neighbor_alpha_dns:  "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_dns_name }}"
+        third_neighbor_alpha_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_ip_address }}"
+        third_neighbor_alpha_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'alpha-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_dns_name }}"
         # Beta
-        first_neighbor_beta_ip:    "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_ip_address }}"
-        first_neighbor_beta_dns:   "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_dns_name }}"
-        second_neighbor_beta_ip:   "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_ip_address }}"
-        second_neighbor_beta_dns:  "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_dns_name }}"
-        third_neighbor_beta_ip:    "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_ip_address }}"
-        third_neighbor_beta_dns:   "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_dns_name }}"
+        first_neighbor_beta_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_ip_address }}"
+        first_neighbor_beta_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[0].network_interfaces[0].private_dns_name }}"
+        second_neighbor_beta_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_ip_address }}"
+        second_neighbor_beta_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[1].network_interfaces[0].private_dns_name }}"
+        third_neighbor_beta_ip: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_ip_address }}"
+        third_neighbor_beta_dns: "{{ (worker_instances | selectattr('tags.Name', 'match', 'beta-.*-worker-us-east-2a-.*'))[2].network_interfaces[0].private_dns_name }}"
       ansible.builtin.copy:
         owner: frr
         group: frr
         mode: "u=rw,g=r,o="
         dest: /etc/frr/frr.conf
         content: |
-            hostname {{ aws_private_dns_name }}
-            ip prefix-list ACCEPT_CLUSTERS seq 5 permit {{ supernet_anycast }} le 32
+          hostname {{ aws_private_dns_name }}
+          ip prefix-list ACCEPT_CLUSTERS seq 5 permit {{ supernet_anycast }} le 32
+          !
+          router bgp 65000
+           bgp router-id {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}
+           bgp bestpath as-path multipath-relax
+           neighbor {{ first_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ second_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ third_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ first_neighbor_beta_ip }} remote-as 65002
+           neighbor {{ second_neighbor_beta_ip }} remote-as 65002
+           neighbor {{ third_neighbor_beta_ip }} remote-as 65002
+           address-family ipv4 unicast
+            neighbor {{ first_neighbor_alpha_ip }} soft-reconfiguration inbound
+            neighbor {{ first_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
             !
-            router bgp 65000
-             bgp router-id {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}
-             bgp bestpath as-path multipath-relax
-             neighbor {{ first_neighbor_alpha_ip }} remote-as 65001
-             neighbor {{ second_neighbor_alpha_ip }} remote-as 65001
-             neighbor {{ third_neighbor_alpha_ip }} remote-as 65001
-             neighbor {{ first_neighbor_beta_ip }} remote-as 65002
-             neighbor {{ second_neighbor_beta_ip }} remote-as 65002
-             neighbor {{ third_neighbor_beta_ip }} remote-as 65002
-             address-family ipv4 unicast
-              neighbor {{ first_neighbor_alpha_ip }} soft-reconfiguration inbound
-              neighbor {{ first_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              neighbor {{ second_neighbor_alpha_ip }} soft-reconfiguration inbound
-              neighbor {{ second_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              neighbor {{ third_neighbor_alpha_ip }} soft-reconfiguration inbound
-              neighbor {{ third_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              neighbor {{ first_neighbor_beta_ip }} soft-reconfiguration inbound
-              neighbor {{ first_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              neighbor {{ second_neighbor_beta_ip }} soft-reconfiguration inbound
-              neighbor {{ second_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              neighbor {{ third_neighbor_beta_ip }} soft-reconfiguration inbound
-              neighbor {{ third_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
-              !
-              maximum-paths 4
-             exit-address-family
-            exit
+            neighbor {{ second_neighbor_alpha_ip }} soft-reconfiguration inbound
+            neighbor {{ second_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
             !
-            route-map ACCEPT_CLUSTERS permit 10
-             match ip address prefix-list ACCEPT_CLUSTERS
-            exit
+            neighbor {{ third_neighbor_alpha_ip }} soft-reconfiguration inbound
+            neighbor {{ third_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
+            !
+            neighbor {{ first_neighbor_beta_ip }} soft-reconfiguration inbound
+            neighbor {{ first_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
+            !
+            neighbor {{ second_neighbor_beta_ip }} soft-reconfiguration inbound
+            neighbor {{ second_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
+            !
+            neighbor {{ third_neighbor_beta_ip }} soft-reconfiguration inbound
+            neighbor {{ third_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
+            !
+            maximum-paths 4
+           exit-address-family
+          exit
+          !
+          route-map ACCEPT_CLUSTERS permit 10
+           match ip address prefix-list ACCEPT_CLUSTERS
+          exit
 
-    - name: "Enable and Restart the FRR Service"
+    - name: "Enable the FRR Service"
       ansible.builtin.service:
         name: frr
         enabled: true
-        state: restarted
+        state: started
