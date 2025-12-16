@@ -11,7 +11,8 @@ compute:
   name: worker
   platform:
     aws:
-      type: m6i.large # 2c/8gb (minimum)
+      #type: m6i.large # 2c/8gb (minimum) - not sufficient after a few operators
+      type: m6i.2xlarge # 8c/32gb
   replicas: 3
 controlPlane:
   architecture: amd64
