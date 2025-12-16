@@ -31,7 +31,7 @@
       ansible.builtin.file:
         state: directory
         path: "../../hunt/clusters/{{ item }}"
-        mode: '0755'
+        mode: "0755"
 
     # MetalLB
     - name: "Create Argo Application Manifests - {{ app_name }}"
@@ -75,7 +75,13 @@
     - name: "Create Argo Application Manifests - {{ app_name }}"
       loop:
         - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+          app: "app1"
+          shared_ip: "10.255.255.1"
+          dedicated_ip: "10.255.255.11"
         - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+          app: "app2"
+          shared_ip: "10.255.255.1"
+          dedicated_ip: "10.255.255.12"
       vars:
         app_name: "gatewayapi"
         chart_name: "gatewayapi"
@@ -85,14 +91,14 @@
             namespace: "anycast-gateways"
             # NOTE: Very limited customization scope - extend template to fully use gatewayapi
             gateways:
-             - namespace: "anycast-gateways"
-               name: "anycast-gateway-shared"
-               ipaddress: "10.255.255.1"
-               hostname: "anycast.{{sandbox_domain}}"
-             - namespace: "anycast-gateways"
-               name: "anycast-gateway-dedicated-app1"
-               ipaddress: "10.255.255.2"
-               hostname: "app1-anycast.{{sandbox_domain}}"
+              - namespace: "anycast-gateways"
+                name: "anycast-gateway-shared"
+                ipaddress: "{{ item.shared_ip }}"
+                hostname: "anycast.{{ sandbox_domain }}"
+              - namespace: "anycast-gateways"
+                name: "anycast-gateway-dedicated-{{ item.app }}"
+                ipaddress: "{{ item.dedicated_ip }}"
+                hostname: "{{ item.app }}-anycast.{{ sandbox_domain }}"
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
@@ -179,9 +185,9 @@
         state: present
         src: "../../hunt/openshift-gitops-operator.yml"
 
-    - name: "Pause for OpenShift GitOps to be ready (simple 60 second pause)"
+    - name: "Pause for OpenShift GitOps to be ready (simple 60 second pause)" # noqa: no-handler
       when: res_argo.changed
-      pause:
+      ansible.builtin.pause:
         seconds: 60
 
     - name: "Deploy the Argo App Templates - alpha"
