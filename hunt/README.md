@@ -1,19 +1,5 @@
 # Installation
 
-## Update deploy.sh
-
-Update the deploy.sh file with your clustera/clusterv API URLs
-
-```cat deploy.sh 
-#!/bin/bash
-
-CLUSTERA="api.cluster-a.example.io:6443"
-CLUSTERB="api.cluster-b.example.io:6443"
-
-...
-
-```
-
 ## Ensure that you have the following prerequsites installed
 
 ### Binaries
@@ -24,8 +10,25 @@ CLUSTERB="api.cluster-b.example.io:6443"
 - Available from access.redhat.com/downloads - select A-Z then Red Hat Service Interconnect
 - Direct Link: https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=redhat.service.interconnect
 
-## Run the deploy.sh script
-`./deploy.sh`
+## Fully Automated
+
+Use the demo/README.md file to deploy the full AWS-based environment from scratch
+
+## Mostly Automated
+
+Apply the gitops manifest
+
+```
+oc apply -f openshift-gitops-operator.yml
+```
+
+Modify and run the demo/aws/deploy_argo_apps.yml playbook to create the associated argo apps
+
+```
+cd ../demo/aws
+vim deploy_args_apps.yml
+ansible-playbook deploy_argo_apps.yml
+```
 
 # Documentation Links
 
