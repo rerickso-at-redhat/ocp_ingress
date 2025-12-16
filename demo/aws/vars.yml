@@ -1,5 +1,5 @@
 ---
-sandbox_domain: "sandbox2114.opentlc.com"
+sandbox_domain: "sandbox647.opentlc.com"
 primary_region: "us-east-2"
 ami_rhel_10: "ami-0912d5cf1d5dff99c"
 supernet_clusters: "10.0.0.0/8"
