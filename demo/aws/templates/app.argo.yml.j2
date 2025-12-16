@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ app_name }}
+  namespace: openshift-gitops
+spec:
+  project: default
+  destination:
+    name: in-cluster
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - managedNamespaceMetadata=true
+      - Replace=true
+      - PruneLast=true
+    automated:
+      prune: true
+      selfHeal: true
+  source:
+    repoURL: "{{ git_repo_url }}"
+    targetRevision: "{{ git_repo_revision }}"
+    path: "hunt/charts/{{ chart_name }}"
+    helm:
+      valuesObject: {{ values_object }}

@@ -1,0 +1,20 @@
+{{ if .Values.app.local }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Values.app.name }}
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
+spec:
+  ports:
+  - name: 8080-tcp
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: {{ .Values.app.name }}
+    deploymentconfig: hello-world
+  sessionAffinity: None
+  type: ClusterIP
+{{ end }}

@@ -1,0 +1,55 @@
+---
+- name: "Create/Consume RHSI Tokens"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: "Create/Consume RHSI Tokens"
+      block:
+        - name: "Debug CLI Installation Information"
+          ansible.builtin.debug:
+            msg:
+              - "To install the RHSI/Skupper CLI see the instructions relevant for your version at:"
+              - "https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1/html/installation/installing-skupper-cli"
+
+        - name: "Debug Authentication Information"
+          ansible.builtin.debug:
+            msg:
+              - "Depending on your authentication setup, you may need to refresh your tokens in your kubeconfigs first:"
+              - "ex. 'oc login --kubeconfig path/to/kubeconfig --web'"
+
+        - name: "Iusse tokens"
+          loop:
+            - cluster: "alpha"
+              app: "app1"
+              kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+            - cluster: "beta"
+              app: "app2"
+              kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+          ansible.builtin.command:
+            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --namespace={{ item.app }} token issue secrets/{{ item.app }}-token.yml"
+            creates: "secrets/{{ item.app }}-token.yml"
+
+        - name: "Redeem tokens"
+          register: res_redemption
+          changed_when: "res_redemption.rc == 0"
+          loop:
+          # NOTE: Configs are flipped from above because they need to be redeemed on opposing clusters
+            - cluster: "alpha"
+              app: "app1"
+              kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+            - cluster: "beta"
+              app: "app2"
+              kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+          ansible.builtin.command:
+            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --namespace={{ item.app }} token redeem secrets/{{ item.app }}-token.yml"
+
+      always:
+        - name: "Delete tokens"
+          failed_when: false
+          loop:
+            - "app1"
+            - "app2"
+          ansible.builtin.file:
+            state: absent
+            path: "secrets/{{ item }}-token.yml"

@@ -1,0 +1,10 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: openshift-default
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  # The controllerName must exactly match "openshift.io/gateway-controller/v1".
+  # This is how the Ingress Operator finds and manages it in OpenShift.
+  controllerName: openshift.io/gateway-controller/v1

@@ -1,0 +1,17 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: anycast-advert
+  namespace: metallb-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  aggregationLength: 32
+  aggregationLengthV6: 128
+  ipAddressPools:
+  - anycast-address-pool
+  peers:
+  {{- range $.Values.metallb.bgppeers }}
+  - {{ .name }}
+  {{- end }}

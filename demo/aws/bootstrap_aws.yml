@@ -1,0 +1,245 @@
+# yamllint disable rule:line-length
+---
+# Purpose:
+# This playbook bootstraps enough custom AWS networking to deploy multiple OpenShift clusters in a BGP Anycast Ingress Scenario
+# The AWS requirements when installing OCP into a custom VPC are essentially the VPC, Subnets, Route Tables, and Gateways (Internet and NAT)
+# See: https://docs.okd.io/latest/installing/installing_aws/ipi/installing-aws-vpc.html#installation-custom-aws-vpc-requirements_installing-aws-vpc
+# Finally, the playbook passes generated variables (AWS identifiers, etc) to other playbooks and scripts via variable and template files
+- name: "Deploy Multi Cluster OCP Components"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - "vars.yml"
+    - "secrets/secrets.yml" # Not saved to repo - see secrets.yml.example for requirements
+  tasks:
+    - name: "Initialize VPC"
+      register: res_vpc
+      amazon.aws.ec2_vpc_net:
+        name: "{{ vpc.name }}"
+        cidr_block: "{{ vpc.cidrs }}"
+        region: "{{ primary_region }}"
+        tenancy: default
+        # Explicit Defaults
+        dns_support: true
+        dns_hostnames: true
+        multi_ok: false
+
+    - name: "Initialize VPC Internet Gateway"
+      register: res_igw
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        tags:
+          Name: "igw-public"
+
+    - name: "Initialize VPC Subnets"
+      loop: "{{ vpc.subnets }}"
+      register: res_subnets
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        az: "{{ item.az }}"
+        cidr: "{{ item.cidr }}"
+        purge_tags: false
+        tags:
+          Name: "{{ item.name }}"
+          kubernetes.io/cluster/unmanaged: "{{ true if '-tor-' in item.name else omit }}"
+
+    # NOTE: Hardcoding between "vpc" in vars.yml and subnet id mappings
+    - name: "Get Subnet IDs"
+      ansible.builtin.set_fact:
+        subnet_id_tor_private: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[0].name))[0]['subnet']['id'] }}"
+        subnet_id_tor_public: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[1].name))[0]['subnet']['id'] }}"
+        subnet_id_alpha_private: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[2].name))[0]['subnet']['id'] }}"
+        subnet_id_alpha_public: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[3].name))[0]['subnet']['id'] }}"
+        subnet_id_beta_private: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[4].name))[0]['subnet']['id'] }}"
+        subnet_id_beta_public: "{{ (res_subnets['results'] | selectattr('subnet.tags.Name', 'equalto', vpc.subnets[5].name))[0]['subnet']['id'] }}"
+
+    # TODO: it would be nice if this could live in vars.yml since it is carving out ip space. struggling between the need for subnet ids and ips/names but I also need to reuse this after IPI to make the interfaces ...
+    - name: "Establish Subnet CIDR Reservations Fact"
+      ansible.builtin.set_fact:
+        subnet_reservations:
+        # tor
+          - cluster: "tor"
+            subnet_id: "{{ subnet_id_tor_private }}"
+            cidr: "{{ vpc.dhcp_res_router_bgp_tor_private }}"
+            eni_name: "router-bgp-tor-private"
+          # alpha
+          - cluster: "alpha"
+            subnet_id: "{{ subnet_id_alpha_private }}"
+            cidr: "{{ vpc.dhcp_res_router_bgp_alpha_private }}"
+            eni_name: "router-bgp-alpha-private"
+          # beta
+          - cluster: "beta"
+            subnet_id: "{{ subnet_id_beta_private }}"
+            cidr: "{{ vpc.dhcp_res_router_bgp_beta_private }}"
+            eni_name: "router-bgp-beta-private"
+
+    # NOTE: A little duplication of get calls (same subnet gathered multiple times) saves effort on the create calls
+    - name: "Get Subnet CIDR Reservations"
+      register: res_reservations
+      loop: "{{ subnet_reservations }}"
+      changed_when: false
+      ansible.builtin.command:
+        cmd: "aws ec2 get-subnet-cidr-reservations --subnet-id {{ item.subnet_id }}"
+
+    - name: "Create Subnets IPv4 Reservations"
+      register: res_reservation
+      loop: "{{ subnet_reservations }}"
+      loop_control:
+        index_var: i
+      # When the cidr reservation isnt already part of the given subnet (note - doesnt check all subnets or the whole vpc)
+      when: "(res_reservations.results[i].stdout | from_json).SubnetIpv4CidrReservations | selectattr('Cidr', 'equalto', item.cidr) | length == 0"
+      changed_when: true # Only runs when a change is needed
+      ansible.builtin.command:
+        cmd: "aws ec2 create-subnet-cidr-reservation --cidr '{{ item.cidr }}' --reservation-type 'explicit' --subnet-id '{{ item.subnet_id }}'"
+
+    # Create a NAT Gateway for each availability zone
+    # NOTE: AWS accounts are normally limited to 5 elastic ip addresses
+    - name: Initialize VPC NAT Gateways
+      loop:
+        - id: "{{ subnet_id_tor_public }}"
+          name: "ngw-tor"
+        - id: "{{ subnet_id_alpha_public }}"
+          name: "ngw-alpha"
+        - id: "{{ subnet_id_beta_public }}"
+          name: "ngw-beta"
+      register: res_ngws
+      amazon.aws.ec2_vpc_nat_gateway:
+        connectivity_type: "public"
+        subnet_id: "{{ item.id }}"
+        if_exist_do_not_create: true
+        wait: true
+        tags:
+          Name: "{{ item.name }}"
+
+    - name: Name the Elastic IPs
+      loop: "{{ res_ngws['results'] }}"
+      when: "item['nat_gateway_addresses'][0]['public_ip'] is defined"
+      amazon.aws.ec2_eip:
+        public_ip: "{{ item['nat_gateway_addresses'][0]['public_ip'] }}"
+        tags:
+          Name: "{{ item['item']['name'] | regex_replace('ngw-', 'eip-ngw-') }}"
+
+    - name: "Create a Fact for Nat Gateway IDs"
+      ansible.builtin.set_fact:
+        ngw_ids: "{{ res_ngws.results | selectattr('nat_gateway_id', 'defined') | map(attribute='nat_gateway_id') }}"
+
+    - name: Initialize VPC Route Tables (publics/internet-gateway)
+      register: res_rtb_publics
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        subnets:
+          - "{{ subnet_id_tor_public }}"
+          - "{{ subnet_id_alpha_public }}"
+          - "{{ subnet_id_beta_public }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ res_igw.gateway_id }}"
+        tags:
+          Name: "public-igw"
+
+    - name: Initialize VPC Route Tables (privates/nat gateways)
+      register: res_rtb_privates
+      # NOTE: Nasty hardcoding - based on all previous ordering, 0=1, 1=b, 2=c for subnets and NGW
+      loop:
+        - subnet_id: "{{ subnet_id_tor_private }}"
+          name: tor-private-ngw
+          index: 0
+        - subnet_id: "{{ subnet_id_alpha_private }}"
+          name: alpha-private-ngw
+          index: 1
+        - subnet_id: "{{ subnet_id_beta_private }}"
+          name: beta-private-ngw
+          index: 2
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        subnets:
+          - "{{ item.subnet_id }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ ngw_ids[item.index] }}"
+        tags:
+          Name: "{{ item.name }}"
+
+    - name: "Initialize VPC Endpoint (S3) - {{ primary_region }}"
+      amazon.aws.ec2_vpc_endpoint:
+        region: "{{ primary_region }}"
+        service: "com.amazonaws.{{ primary_region }}.s3"
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        route_table_ids:
+          - "{{ res_rtb_publics.route_table.id }}"
+          - "{{ res_rtb_privates.results[0].route_table.id }}"
+          - "{{ res_rtb_privates.results[1].route_table.id }}"
+          - "{{ res_rtb_privates.results[2].route_table.id }}"
+
+    - name: Initialize the public-facing-vms security group
+      register: sg_public_facing_vms
+      amazon.aws.ec2_security_group:
+        name: "public-facing-vms"
+        description: "Public facing VMs that need SSH access"
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: "0.0.0.0/0"
+        tags:
+          Name: "public-facing-vms"
+
+    - name: Initialize the private-facing-vms security group
+      register: sg_private_facing_vms
+      amazon.aws.ec2_security_group:
+        name: "private-facing-vms"
+        description: "Private facing VMs that need SSH access"
+        vpc_id: "{{ res_vpc.vpc.id }}"
+        rules:
+          - proto: icmp
+            icmp_code: -1 # All
+            icmp_type: -1 # All
+            cidr_ip: "{{ supernet_clusters }}"
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: "{{ supernet_clusters }}"
+        tags:
+          Name: "private-facing-vms"
+
+    - name: "Create install-config.yaml Files For Alpha, Beta"
+      loop:
+        - cluster: alpha
+          supernet: "{{ supernet_alpha }}"
+          subnets:
+            public: "{{ subnet_id_alpha_public }}"
+            private: "{{ subnet_id_alpha_private }}"
+        - cluster: beta
+          supernet: "{{ supernet_beta }}"
+          subnets:
+            public: "{{ subnet_id_beta_public }}"
+            private: "{{ subnet_id_beta_private }}"
+      vars:
+        cluster: "{{ item.cluster }}"
+        supernet: "{{ item.supernet }}"
+        subnets: "{{ item.subnets }}"
+      ansible.builtin.template:
+        src: "install-config.yaml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "ocp/{{ item.cluster }}.install-config.yaml"
+
+    - name: "Save Generated Facts"
+      ansible.builtin.copy:
+        mode: "u=rw,g=r,o=r"
+        dest: "generated_facts.yml"
+        content: |
+          ---
+          # Facts generated during AWS bootstrapping
+          res_vpc: {{ res_vpc }}
+          subnet_id_tor_private: {{ subnet_id_tor_private }}
+          subnet_id_tor_public: {{ subnet_id_tor_public }}
+          subnet_id_alpha_private: {{ subnet_id_alpha_private }}
+          subnet_id_alpha_public: {{ subnet_id_alpha_public }}
+          subnet_id_beta_private: {{ subnet_id_beta_private }}
+          subnet_id_beta_public: {{ subnet_id_beta_public }}
+          subnet_reservations: {{ subnet_reservations }}

@@ -1,0 +1,25 @@
+{{ if .Values.app.local }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hello-world-configmap
+  namespace: {{ .Values.app.name }}
+  labels:
+    app.kubernetes.io/instance: hello-world
+data:
+  "index.html": |-
+    <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <title>Hello-App</title>
+        </head>
+          <body>
+            <h1>Hello-App</h1>
+            <br>
+            <h2>
+            Hello from '{{ .Values.app.name }}' <br>
+            </h2>
+          </body>
+      </html>
+{{ end }}

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Initialize Transit Gateway Route Table Propagation
+  register: tgw_rtb_propagation
+  changed_when:
+    - "not ('TransitGatewayRouteTablePropagation.Duplicate' in tgw_rtb_propagation.stderr \
+       or 'already exists in Transit Gateway Route Table' in tgw_rtb_propagation.stderr)"
+  failed_when:
+    - "tgw_rtb_propagation.rc != 0"
+    - "'TransitGatewayRouteTablePropagation.Duplicate' not in tgw_rtb_propagation.stderr"
+    - "'already exists in Transit Gateway Route Table' not in tgw_rtb_propagation.stderr"
+  ansible.builtin.command:
+    cmd: |
+      aws ec2 enable-transit-gateway-route-table-propagation --transit-gateway-route-table-id '{{ tgw_rtb_id }}' --transit-gateway-attachment-id '{{ tgw_attach_id }}'
+
+- name: Debug tgw_rtb_propagation
+  ansible.builtin.debug:
+    var: tgw_rtb_propagation
+    verbosity: 2

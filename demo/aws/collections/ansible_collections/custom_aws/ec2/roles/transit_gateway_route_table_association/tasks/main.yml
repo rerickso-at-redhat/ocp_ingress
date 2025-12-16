@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT-0
+---
+# NOTE: This role does not differentiate between "Already associated on another route table" and "Already associated generally"
+#       Therefore it assumes that if it is already associated with a route table, it is with the correct route table and nothing changed or needs to change
+- name: Role Warning
+  ansible.builtin.debug:
+    msg:
+      - "NOTE:"
+      - "This role (transit_gateway_route_table_association) does not differentiate between \
+         'Already associated on another route table' and 'Already associated generally'"
+      - "Therefore it assumes that if it is already associated with a route table, it is with the correct route table and nothing changed or needs to change"
+      - "Proceed accordingly - associating newly created attachments only is the safest route"
+
+- name: Initialize Transit Gateway Route Table Association
+  register: tgw_rtb_association
+  changed_when: "not ('Resource.AlreadyAssociated' in tgw_rtb_association.stderr or 'is already associated to a route table' in tgw_rtb_association.stderr)"
+  failed_when:
+    - "tgw_rtb_association.rc != 0"
+    - "'Resource.AlreadyAssociated' not in tgw_rtb_association.stderr"
+    - "'is already associated to a route table' not in tgw_rtb_association.stderr"
+  ansible.builtin.command:
+    cmd: |
+      aws ec2 associate-transit-gateway-route-table --transit-gateway-route-table-id '{{ tgw_rtb_id }}' --transit-gateway-attachment-id '{{ tgw_attach_id }}'
+
+- name: Debug tgw_rtb_association
+  ansible.builtin.debug:
+    var: tgw_rtb_association
+    verbosity: 2

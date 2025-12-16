@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Check if Transit Gateway Route Table Exists
+  register: tgw_rt
+  changed_when: true # Will always run to determine state
+  ansible.builtin.command:
+    cmd: "aws ec2 describe-transit-gateway-route-tables --filters 'Name=tag:Name,Values={{ tgw_rt_name }}'"
+
+- name: Debug tgw_rt
+  ansible.builtin.debug:
+    var: tgw_rt
+    verbosity: 2
+
+- name: Get Transit Gateway Route Table ID
+  when: "tgw_rt_name in tgw_rt.stdout"
+  block:
+    - name: "Transit Gateway Route Table Status - Exists"
+      ansible.builtin.debug:
+        msg: "Transit Gateway Route Table Exists: {{ tgw_rt_name }}"
+
+    - name: "Get Transit Gateway Route Table ID"
+      ansible.builtin.set_fact:
+        tgw_rt_id: "{{ (tgw_rt.stdout | from_json).TransitGatewayRouteTables[0].TransitGatewayRouteTableId }}"
+
+    - name: "Debug Transit Gateway Route Table ID"
+      ansible.builtin.debug:
+        var: tgw_rt_id
+
+    - name: "Unable To Proceed - Too Many Route Table IDs For Given Transit Gateway Route Table Name"
+      when: "(tgw_rt.stdout | from_json) | length != 1"
+      ansible.builtin.fail:
+        msg: "Unable To Proceed - Too Many Route Table IDs For Given Transit Gateway Route Table Name"
+
+- name: Create Transit Gateway Route Table
+  when: "tgw_rt_name not in tgw_rt.stdout"
+  block:
+    - name: "Transit Gateway Route Table Status - Does Not Exist"
+      ansible.builtin.debug:
+        msg:
+          - "Transit Gateway Route Table Does Not Exist, Creating: {{ tgw_rt_name }}"
+          - |
+            aws ec2 create-transit-gateway-route-table --transit-gateway-id '{{ tgw_id }}' --tag-specifications '{"ResourceType":"transit-gateway-route-table","Tags":[{"Key":"Name","Value":"{{ tgw_rt_name }}"}]}'
+
+    - name: "Initialize Transit Gateway Route Table: {{ tgw_rt_name }}"
+      changed_when: true # Previous gates determine if this command needs to run to change the aws state
+      register: tgw_rt_create
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 create-transit-gateway-route-table --transit-gateway-id '{{ tgw_id }}' --tag-specifications '{"ResourceType":"transit-gateway-route-table","Tags":[{"Key":"Name","Value":"{{ tgw_rt_name }}"}]}'
+
+    - name: "Get Transit Gateway Route Table ID From Init Output"
+      set_fact:
+        tgw_rt_id: "{{ (tgw_rt_create.stdout | from_json).TransitGatewayRouteTable.TransitGatewayRouteTableId }}"
+
+
+- name: "Save Transit Gateway Route Table ID To Facts"
+  ansible.builtin.set_fact:
+    custom_aws_ec2_transit_gateway_route_table: "{{
+      custom_aws_ec2_transit_gateway_route_table | default({}) | combine({
+        tgw_rt_name: {
+          'tgw_id': tgw_id,
+          'tgw_rt_id': tgw_rt_id
+        }
+      })
+    }}"

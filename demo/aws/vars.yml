@@ -1,0 +1,43 @@
+---
+sandbox_domain: "sandbox647.opentlc.com"
+primary_region: "us-east-2"
+ami_rhel_10: "ami-0912d5cf1d5dff99c"
+supernet_clusters: "10.0.0.0/8"
+supernet_tor: "10.0.0.0/16"
+supernet_alpha: "10.1.0.0/16"
+supernet_beta: "10.2.0.0/16"
+supernet_anycast: "10.255.255.0/24"
+vpc:
+  name: "vpc-hunt"
+  cidrs:
+    - 10.0.0.0/16
+    - 10.1.0.0/16
+    - 10.2.0.0/16
+  subnets:
+    # VPC (Supernet: 10.0.0.0/8)
+    ## TOR (Supernet: 10.0.0.0/16)
+    - name: subnet-tor-private
+      cidr: 10.0.0.0/19
+      az: us-east-2a
+    - name: subnet-tor-public
+      cidr: 10.0.32.0/19
+      az: us-east-2a
+    ## ALPHA (Supernet: 10.1.0.0/16)
+    - name: subnet-alpha-private
+      cidr: 10.1.0.0/19
+      az: us-east-2a
+    - name: subnet-alpha-public
+      cidr: 10.1.32.0/19
+      az: us-east-2a
+    ## BETA (Supernet: 10.2.0.0/16)
+    - name: subnet-beta-private
+      cidr: 10.2.0.0/19
+      az: us-east-2a
+    - name: subnet-beta-public
+      cidr: 10.2.32.0/19
+      az: us-east-2a
+    ## ANYCAST (Supernet: 10.0.192.0/18)
+    # Reserved
+  dhcp_res_router_bgp_tor_private: "10.0.0.96/32"
+  dhcp_res_router_bgp_alpha_private: "10.1.0.96/32"
+  dhcp_res_router_bgp_beta_private: "10.2.0.96/32"

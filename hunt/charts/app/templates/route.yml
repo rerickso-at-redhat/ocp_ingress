@@ -1,0 +1,21 @@
+{{ if .Values.app.local }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: {{ .Values.app.name }}
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
+spec:
+  host: {{ .Values.app.route.host }}
+  port:
+    targetPort: 8080-tcp
+  to:
+    kind: Service
+    name: {{ .Values.app.name }}
+    weight: 100
+  wildcardPolicy: None
+  tls:
+    insecureEdgeTerminationPolicy: Allow
+    termination: edge
+{{ end }}

@@ -1,0 +1,17 @@
+{{- range $.Values.metallb.bgppeers }}
+---
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: {{ .name | quote }}
+  namespace: metallb-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  disableMP: false
+  myASN: {{ .myASN }}
+  peerASN: {{ .peerASN }}
+  peerAddress: {{ .peerAddress }}
+  peerPort: 179
+  #nodeSelectors:
+{{- end }}

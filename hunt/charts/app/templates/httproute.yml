@@ -1,0 +1,41 @@
+{{ if .Values.app.local }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.app.name }}-shared
+  namespace: {{ .Values.app.name }}
+spec:
+  parentRefs:
+  - name: anycast-gateway-shared
+    namespace: anycast-gateways
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /{{ .Values.app.name }}
+    backendRefs:
+    - name: {{ .Values.app.name }}
+      port: {{ .Values.app.httproute.port }}
+    # For path-based routing, Apps that will respond to /app1, or rewrite the URL themselves will not need a rewrite
+    # This hello app does not have an /app1 page so rewrite it to / which will pull the index
+    filters:
+      - type: URLRewrite
+        urlRewrite:
+          path:
+            type: ReplaceFullPath
+            replaceFullPath: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.app.name }}-dedicated
+  namespace: {{ .Values.app.name }}
+spec:
+  parentRefs:
+  - name: anycast-gateway-dedicated-{{ .Values.app.name }}
+    namespace: anycast-gateways
+  rules:
+  - backendRefs:
+    - name: {{ .Values.app.name }}
+      port: {{ .Values.app.httproute.port }}
+{{ end }}
