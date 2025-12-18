@@ -44,7 +44,6 @@ metadata:
   namespace: {{ .Values.app.name }}
 spec:
   routingKey: {{ .Values.app.name }}
-  host: {{ .Values.app.name }}
   port: 8080
   type: tcp
 ...
