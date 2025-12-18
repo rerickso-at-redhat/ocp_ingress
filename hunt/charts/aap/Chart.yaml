@@ -1,6 +1,0 @@
----
-apiVersion: v2
-name: aap
-version: 1.0.0
-description: Deploy AAP
-type: application
