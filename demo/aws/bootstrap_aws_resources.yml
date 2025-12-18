@@ -133,6 +133,16 @@
         tags:
           Name: "{{ item.eni_name }}"
 
+    - name: Initialize the client ec2 instance
+      register: ec2_client
+      amazon.aws.ec2_instance:
+        name: "tor-client"
+        key_name: "key-aws-demo"
+        vpc_subnet_id: "{{ subnet_id_tor_private }}"
+        instance_type: "t2.small"
+        image_id: "{{ ami_rhel_10 }}"
+        security_group: "private-facing-vms"
+
     - name: "Get EC2 Instances"
       register: res_ec2_instances
       amazon.aws.ec2_instance_info:
@@ -148,27 +158,6 @@
       ansible.builtin.command:
         cmd: |
           aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
-
-#    - name: "Assign A Secondary Interface For BGP Peering To Each Cluster Worker Node"
-#      loop: "{{ worker_instances }}"
-#      register: "res_attach_eni"
-#      vars:
-#        netid: "{{ ((res_eni_tor | combine(res_eni_clusters)).results | selectattr('interface', 'defined') | selectattr('interface.subnet_id', 'equalto', item.subnet_id) | first).interface.id }}"
-#        intid: "{{ item.instance_id }}"
-#      changed_when: "'already has an interface attached' not in res_attach_eni.stderr"
-#      failed_when: false
-#      command:
-#        cmd: "aws ec2 attach-network-interface --network-interface-id '{{ netid }}' --instance-id '{{ intid }}' --device-index '1' --network-card-index '0'"
-
-    - name: Initialize the client ec2 instance
-      register: ec2_client
-      amazon.aws.ec2_instance:
-        name: "tor-client"
-        key_name: "key-aws-demo"
-        vpc_subnet_id: "{{ subnet_id_tor_private }}"
-        instance_type: "t2.small"
-        image_id: "{{ ami_rhel_10 }}"
-        security_group: "private-facing-vms"
 
     - name: Initialize the bgp-router ec2 instance
       register: ec2_router_bgp
@@ -205,13 +194,24 @@
       ansible.builtin.add_host:
         hostname: "tor-bastion"
         groups:
-          - "test_vms"
+          - "bastion"
         ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_dns_name }}"
         ansible_ssh_port: 22
         ansible_ssh_common_args: "-o StrictHostKeyChecking=false"
         ansible_user: "ec2-user"
         ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
         public_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
+
+    - name: "Add the Client AWS host to the Ansible Inventory"
+      ansible.builtin.add_host:
+        hostname: "tor-client"
+        groups:
+          - "client"
+        ansible_ssh_host: "{{ ec2_client.instances[0].network_interfaces[0].private_dns_name | default(false) or ec2_client.instances[0].network_interfaces[0].association.private_dns_name }}"
+        ansible_ssh_port: 22
+        ansible_user: "ec2-user"
+        ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand='ssh -i secrets/key-aws-demo.pem -p 22 -W %h:%p -o StrictHostKeyChecking=no -q ec2-user@{{ hostvars['tor-bastion']['ansible_ssh_host'] }}'"
 
     # TODO: copy the key over to the bastion
     - name: "Add the BGP AWS host to the Ansible Inventory"
@@ -234,7 +234,6 @@
   gather_facts: false
   vars_files:
     - "vars.yml"
-    - "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/generated_facts.yml"
   become: true
   handlers:
     - name: "Restart FRR"
@@ -366,3 +365,31 @@
         name: frr
         enabled: true
         state: started
+
+- name: "Configure the Client VM"
+  hosts: client
+  gather_facts: false
+  vars_files:
+    - "vars.yml"
+  become: true
+  tasks:
+    - name: "Wait For SSH Connectivity"
+      failed_when: false
+      ansible.builtin.wait_for_connection:
+        timeout: 90
+
+    - name: "Wait For SSH Connectivity"
+      failed_when: false
+      ansible.builtin.wait_for_connection:
+        timeout: 90
+
+    - name: "Add Static Route For Anycast Via Router"
+      register: res_route
+      failed_when:
+        - "res_route.rc != 0"
+        - "'File exists' not in res_route.stderr"
+      changed_when:
+        - "res_route.rc == 0"
+        - "'File exists' not in res_route.stderr"
+      ansible.builtin.command:
+        cmd: "ip route add {{ supernet_anycast }} via {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}"
