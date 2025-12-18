@@ -151,14 +151,6 @@
       ansible.builtin.set_fact:
         worker_instances: "{{ res_ec2_instances.instances | selectattr('tags.Name', 'match', '.*-worker-.*') }}"
 
-    # Each worker assumed to have one and only one interface (default IPI behavior)
-    - name: "Disable 'source/destination checking' For Each Worker Node"
-      loop: "{{ worker_instances | map(attribute='network_interfaces.0.network_interface_id') }}"
-      changed_when: true # currently always runs
-      ansible.builtin.command:
-        cmd: |
-          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
-
     - name: Initialize the bgp-router ec2 instance
       register: ec2_router_bgp
       amazon.aws.ec2_instance:
@@ -228,6 +220,34 @@
         aws_private_dns_name: "{{ (ec2_router_bgp.instances[0].network_interfaces | selectattr('private_ip_address', 'equalto', vpc.dhcp_res_router_bgp_tor_private.split('/')[0]))[0].private_dns_name }}"
         worker_instances: "{{ worker_instances }}" # For BGP Config
     # NOTE: maybe rsync content from the bastion to the test nodes
+
+    - name: "Get EC2 Instances"
+      register: res_ec2_instances
+      amazon.aws.ec2_instance_info:
+
+    - name: "Get Worker Instances"
+      ansible.builtin.set_fact:
+        router_instance: "{{ (res_ec2_instances.instances | selectattr('tags.Name', 'equalto', 'tor-router-bgp'))[0] }}"
+        client_instance: "{{ (res_ec2_instances.instances | selectattr('tags.Name', 'equalto', 'tor-client'))[0] }}"
+
+    # Each worker assumed to have one and only one interface (default IPI behavior)
+    - name: "Disable 'source/destination checking' For Each Worker Node"
+      loop: "{{ worker_instances | map(attribute='network_interfaces.0.network_interface_id') }}"
+      changed_when: true # currently always runs
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
+
+    - name: "Disable 'source/destination checking' For Each Router and Client Interface"
+      loop:
+        - "{{ router_instance.network_interfaces[0].network_interface_id }}"
+        - "{{ router_instance.network_interfaces[1].network_interface_id }}"
+        - "{{ router_instance.network_interfaces[2].network_interface_id }}"
+        - "{{ client_instance.network_interfaces[0].network_interface_id }}"
+      changed_when: true # currently always runs
+      ansible.builtin.command:
+        cmd: |
+          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
 
 - name: "Configure the BGP Router VM"
   hosts: bgp
