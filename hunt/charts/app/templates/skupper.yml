@@ -20,7 +20,7 @@ metadata:
 spec:
   port: 8080
   routingKey: {{ .Values.app.name }}
-  selector: deployment={{ .Values.app.name }}
+  selector: app={{ .Values.app.name }}
   type: tcp
 ...
 
