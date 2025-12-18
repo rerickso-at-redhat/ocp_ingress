@@ -3,6 +3,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars_files:
+    - vars.yml
+  vars:
+    # NOTE: admin user/context assumed - feel free to customize as required for your environment
+    skupper_context: "admin"
   tasks:
     - name: "Create/Consume RHSI Tokens"
       block:
@@ -12,37 +17,49 @@
               - "To install the RHSI/Skupper CLI see the instructions relevant for your version at:"
               - "https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1/html/installation/installing-skupper-cli"
 
-        - name: "Debug Authentication Information"
-          ansible.builtin.debug:
-            msg:
-              - "Depending on your authentication setup, you may need to refresh your tokens in your kubeconfigs first:"
-              - "ex. 'oc login --kubeconfig path/to/kubeconfig --web'"
+        - name: "Wait For Sites - Alpha"
+          changed_when: false
+          register: res_sites_alpha
+          until: "res_sites_alpha.stdout | regex_search('app1.*Ready')"
+          retries: 10
+          poll: 30
+          ansible.builtin.command:
+            cmd: "oc --kubeconfig {{ clusters[0].kubeconfig_path }} --user {{ clusters[0].username }} -n app1 get site"
 
-        - name: "Iusse tokens"
+        - name: "Wait For Sites - Beta"
+          changed_when: false
+          register: res_sites_beta
+          until: "res_sites_beta.stdout | regex_search('app2.*Ready')"
+          retries: 10
+          poll: 30
+          ansible.builtin.command:
+            cmd: "oc --kubeconfig {{ clusters[1].kubeconfig_path }} --user {{ clusters[1].username }} -n app2 get site"
+
+        - name: "Issue tokens"
           loop:
             - cluster: "alpha"
               app: "app1"
-              kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+              kubeconfig: "{{ clusters[0].kubeconfig_path }}"
             - cluster: "beta"
               app: "app2"
-              kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+              kubeconfig: "{{ clusters[1].kubeconfig_path }}"
           ansible.builtin.command:
-            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --namespace={{ item.app }} token issue secrets/{{ item.app }}-token.yml"
+            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --context {{ skupper_context }} --namespace={{ item.app }} token issue secrets/{{ item.app }}-token.yml"
             creates: "secrets/{{ item.app }}-token.yml"
 
         - name: "Redeem tokens"
           register: res_redemption
           changed_when: "res_redemption.rc == 0"
           loop:
-          # NOTE: Configs are flipped from above because they need to be redeemed on opposing clusters
+          # NOTE: Configs (0,1 vs 1,0) are flipped from above because they need to be redeemed on opposite clusters
             - cluster: "alpha"
               app: "app1"
-              kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+              kubeconfig: "{{ clusters[1].kubeconfig_path }}"
             - cluster: "beta"
               app: "app2"
-              kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+              kubeconfig: "{{ clusters[0].kubeconfig_path }}"
           ansible.builtin.command:
-            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --namespace={{ item.app }} token redeem secrets/{{ item.app }}-token.yml"
+            cmd: "skupper --kubeconfig={{ item.kubeconfig }} --context {{ skupper_context }} --namespace={{ item.app }} token redeem secrets/{{ item.app }}-token.yml"
 
       always:
         - name: "Delete tokens"

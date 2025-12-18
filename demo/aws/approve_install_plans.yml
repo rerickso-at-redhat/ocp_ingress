@@ -1,0 +1,15 @@
+---
+- name: "Approve Install Plans"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: "Approve Install Plans"
+      loop: "{{ clusters }}"
+      vars:
+        kubeconfig_path: "{{ item.kubeconfig_path }}"
+        username: "{{ item.username }}"
+      ansible.builtin.include_tasks:
+        file: "tasks/approve_install_plans.yml"

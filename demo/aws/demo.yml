@@ -1,0 +1,49 @@
+---
+- name: "README"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    readme: |
+      This playbook simply imports multiple playbooks to spin up a demo environment.
+      To start this playbook, you will need an aws account with a preconfigured route53 entry and you need to update vars.yml.
+      At the end of the playbook, you should have two clusters in an "ingress mesh" configuration.
+      To run the full playbook, use the "AWS_PROFILE" variable alongside your playbook command:
+        ex. AWS_PROFILE=example ansible-playbook demo.yml
+      To run any playbook by itself, you can simply use "--tags \{\{ playbook_name \}\}".
+      Playbooks:
+        - bootstrap_aws_network.yml
+        - install_openshift.yml
+        - bootstrap_aws_resources.yml
+        - deploy_argo_apps.yml
+        - deploy_rhsi_tokens.yml
+
+  tasks:
+    - name: "README"
+      ansible.builtin.debug:
+        msg: "{{ readme.split('\n') }}"
+
+- name: "Bootstrap AWS (tag: bootstrap_aws_network)"
+  tags: "bootstrap_aws_network"
+  ansible.builtin.import_playbook: "bootstrap_aws_network.yml"
+
+- name: "Deploy OCP Clusters (tag: install_openshift)"
+  tags: "install_openshift"
+  ansible.builtin.import_playbook: "install_openshift.yml"
+
+- name: "Bootstrap AWS Resources (tag: bootstrap_aws_resources)"
+  tags: "bootstrap_aws_resources"
+  ansible.builtin.import_playbook: "bootstrap_aws_resources.yml"
+
+- name: "Deploy Argo Apps (tag: deploy_argo_apps)"
+  tags: "deploy_argo_apps"
+  ansible.builtin.import_playbook: "deploy_argo_apps.yml"
+
+# TODO: remove the manual step of approving installplans directly due to the gatewayapi and its rhsi interplay
+- name: "Approve Install Plans"
+  tags: "approve_install_plans"
+  ansible.builtin.import_playbook: "approve_install_plans.yml"
+
+- name: "Deploy RHSI Tokens (tag: deploy_rhsi_tokens)"
+  tags: "deploy_rhsi_tokens"
+  ansible.builtin.import_playbook: "deploy_rhsi_tokens.yml"

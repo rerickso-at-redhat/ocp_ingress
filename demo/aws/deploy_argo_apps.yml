@@ -7,131 +7,126 @@
     - vars.yml
   vars:
     git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
-    git_repo_revision: "e2e"
+    git_repo_revision: "main"
     argo_manifests:
       - "app.metallb.yml"
       - "app.gatewayapi.yml"
       - "app.rhsi.yml"
       - "app.app1.yml"
       - "app.app2.yml"
-  tasks:
-    - name: "Gather EC2 Instances Names"
-      register: res_instances
-      amazon.aws.ec2_instance_info:
-
-    - name: "Set Cluster AWS Name Facts"
-      ansible.builtin.set_fact:
-        alpha_cluster_aws_name: "{{ (res_instances.instances | selectattr('tags.Name', 'match', 'alpha-.*-worker') | first).tags.Name.split('-worker')[0] }}"
-        beta_cluster_aws_name: "{{ (res_instances.instances | selectattr('tags.Name', 'match', 'beta-.*-worker') | first).tags.Name.split('-worker')[0] }}"
-
-    - name: "Create Directories For Each Cluster"
-      loop:
-        - "{{ alpha_cluster_aws_name }}"
-        - "{{ beta_cluster_aws_name }}"
-      ansible.builtin.file:
-        state: directory
-        path: "../../hunt/clusters/{{ item }}"
-        mode: "0755"
-
-    # MetalLB
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
-          values_object:
-            metallb:
-              ipaddresspool:
-                name: "anycast-address-pool"
-                addresses:
-                  - "{{ supernet_anycast }}"
-              bgppeers:
-                - name: "alpha-us-east-2a"
-                  myASN: 65001
-                  peerASN: 65000
-                  peerAddress: 10.1.0.96
-        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
-          values_object:
-            metallb:
-              ipaddresspool:
-                name: "anycast-address-pool"
-                addresses:
-                  - "{{ supernet_anycast }}"
-              bgppeers:
-                - name: "beta-us-east-2a"
-                  myASN: 65002
-                  peerASN: 65000
-                  peerAddress: 10.2.0.96
-      vars:
-        app_name: "metallb"
-        chart_name: "metallb"
-        cluster_aws_name: "{{ item.cluster_aws_name }}"
-        values_object: |
-          {{ item.values_object }}
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
-
-    # Gateway API
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
-          app: "app1"
-          shared_ip: "10.255.255.1"
-          dedicated_ip: "10.255.255.11"
-        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
-          app: "app2"
-          shared_ip: "10.255.255.1"
-          dedicated_ip: "10.255.255.12"
-      vars:
-        app_name: "gatewayapi"
-        chart_name: "gatewayapi"
-        cluster_aws_name: "{{ item.cluster_aws_name }}"
-        values_object:
+    argo_values:
+      - name: alpha
+        argo_path: "{{ clusters[0].argo_path }}"
+        metallb:
+          metallb:
+            ipaddresspool:
+              name: "anycast-address-pool"
+              addresses:
+                - "{{ supernet_anycast }}"
+            bgppeers:
+              - name: "alpha-us-east-2a"
+                myASN: 65001
+                peerASN: 65000
+                peerAddress: 10.1.0.96
+        gatewayapi:
           gatewayapi:
             namespace: "anycast-gateways"
             # NOTE: Very limited customization scope - extend template to fully use gatewayapi
             gateways:
               - namespace: "anycast-gateways"
                 name: "anycast-gateway-shared"
-                ipaddress: "{{ item.shared_ip }}"
+                ipaddress: "10.255.255.1"
                 hostname: "anycast.{{ sandbox_domain }}"
               - namespace: "anycast-gateways"
-                name: "anycast-gateway-dedicated-{{ item.app }}"
-                ipaddress: "{{ item.dedicated_ip }}"
-                hostname: "{{ item.app }}-anycast.{{ sandbox_domain }}"
+                name: "anycast-gateway-dedicated-app1"
+                ipaddress: "10.255.255.11"
+                hostname: "app1-anycast.{{ sandbox_domain }}"
+        rhsi:
+          rhsi:
+            starting_csv: "skupper-operator.v2.1.2-rh-2"
+      - name: beta
+        argo_path: "{{ clusters[1].argo_path }}"
+        metallb:
+          metallb:
+            ipaddresspool:
+              name: "anycast-address-pool"
+              addresses:
+                - "{{ supernet_anycast }}"
+            bgppeers:
+              - name: "beta-us-east-2a"
+                myASN: 65002
+                peerASN: 65000
+                peerAddress: 10.2.0.96
+        gatewayapi:
+          gatewayapi:
+            namespace: "anycast-gateways"
+            # NOTE: Very limited customization scope - extend template to fully use gatewayapi
+            gateways:
+              - namespace: "anycast-gateways"
+                name: "anycast-gateway-shared"
+                ipaddress: "10.255.255.1"
+                hostname: "anycast.{{ sandbox_domain }}"
+              - namespace: "anycast-gateways"
+                name: "anycast-gateway-dedicated-app2"
+                ipaddress: "10.255.255.12"
+                hostname: "app2-anycast.{{ sandbox_domain }}"
+        rhsi:
+          rhsi:
+            starting_csv: "skupper-operator.v2.1.2-rh-2"
+  tasks:
+    - name: "Create Directories For Each Cluster"
+      loop: "{{ clusters }}"
+      ansible.builtin.file:
+        state: directory
+        path: "{{ item.argo_path }}"
+        mode: "0755"
+
+    # MetalLB
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop: "{{ argo_values }}"
+      vars:
+        app_name: "metallb"
+        chart_name: "metallb"
+        values_object: "{{ item.metallb }}"
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
+
+    # Gateway API
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop: "{{ argo_values }}"
+      vars:
+        app_name: "gatewayapi"
+        chart_name: "gatewayapi"
+        values_object: "{{ item.gatewayapi }}"
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
 
     # RHSI
     - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
-        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+      loop: "{{ argo_values }}"
       vars:
         app_name: "rhsi"
         chart_name: "rhsi"
-        cluster_aws_name: "{{ item.cluster_aws_name }}"
-        values_object:
-          rhsi:
-            starting_csv: "skupper-operator.v2.1.2-rh-2"
+        values_object: "{{ item.rhsi }}"
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
 
     # APP 1
     - name: "Create Argo Application Manifests - {{ app_name }}"
       loop:
-        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+        - argo_path: "{{ clusters[0].argo_path }}"
           local: true
-        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+        - argo_path: "{{ clusters[1].argo_path }}"
           local: false
       vars:
         app_name: "app1"
         chart_name: "app"
-        cluster_aws_name: "{{ item.cluster_aws_name }}"
         values_object:
           app:
             local: "{{ item.local }}"
@@ -144,19 +139,18 @@
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
 
     # APP 2
     - name: "Create Argo Application Manifests - {{ app_name }}"
       loop:
-        - cluster_aws_name: "{{ alpha_cluster_aws_name }}"
+        - argo_path: "{{ clusters[0].argo_path }}"
           local: false
-        - cluster_aws_name: "{{ beta_cluster_aws_name }}"
+        - argo_path: "{{ clusters[1].argo_path }}"
           local: true
       vars:
         app_name: "app2"
         chart_name: "app"
-        cluster_aws_name: "{{ item.cluster_aws_name }}"
         values_object:
           app:
             local: "{{ item.local }}"
@@ -169,19 +163,14 @@
       ansible.builtin.template:
         src: "app.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "../../hunt/clusters/{{ cluster_aws_name }}/app.{{ app_name }}.yml"
-
-#    - name: "Commit Argo Apps To Repo"
-
-#    - name: "Push Argo Apps To Repo"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
 
     - name: "Ensure OpenShift GitOps (Argo) is Available"
       register: res_argo
-      loop:
-        - "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
-        - "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+      loop: "{{ clusters }}"
       kubernetes.core.k8s:
-        kubeconfig: "{{ item }}"
+        kubeconfig: "{{ item.kubeconfig_path }}"
+        username: "{{ item.username }}"
         state: present
         src: "../../hunt/openshift-gitops-operator.yml"
 
@@ -192,14 +181,24 @@
 
     - name: "Deploy the Argo App Templates - alpha"
       loop: "{{ argo_manifests }}"
+      vars:
+        cluster: "{{ clusters[0] }}"
       kubernetes.core.k8s:
-        kubeconfig: "{{ playbook_dir }}/ocp/alpha/auth/kubeconfig"
+        kubeconfig: "{{ cluster.kubeconfig_path }}"
+        username: "{{ cluster.username }}"
         state: present
-        src: "../../hunt/clusters/{{ alpha_cluster_aws_name }}/{{ item }}"
+        src: "{{ cluster.argo_path }}/{{ item }}"
 
     - name: "Deploy the Argo App Templates - beta"
       loop: "{{ argo_manifests }}"
+      vars:
+        cluster: "{{ clusters[1] }}"
       kubernetes.core.k8s:
-        kubeconfig: "{{ playbook_dir }}/ocp/beta/auth/kubeconfig"
+        kubeconfig: "{{ cluster.kubeconfig_path }}"
+        username: "{{ cluster.username }}"
         state: present
-        src: "../../hunt/clusters/{{ beta_cluster_aws_name }}/{{ item }}"
+        src: "{{ cluster.argo_path }}/{{ item }}"
+
+    - name: "Allow A Brief Pause For Argo To Init Apps"
+      ansible.builtin.pause:
+        seconds: 60

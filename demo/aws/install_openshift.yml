@@ -1,0 +1,50 @@
+---
+- name: "Install OpenShift"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: "Ensure openshift-install is available"
+      register: res_ocp_version
+      changed_when: true
+      ansible.builtin.command:
+        cmd: "openshift-install version"
+
+    - name: "Display installer version"
+      ansible.builtin.debug:
+        msg: "{{ res_ocp_version.stdout_lines }}"
+
+    - name: "Get status of kubeconfig as install status canary"
+      register: res_stat
+      loop: "{{ clusters }}"
+      ansible.builtin.stat:
+        path: "{{ item.kubeconfig_path }}"
+
+    - name: "Copy install-config.yaml files to the install folders"
+      loop: "{{ clusters }}"
+      loop_control:
+        index_var: i
+      when: "not res_stat.results[i].stat.exists"
+      ansible.builtin.copy:
+        mode: "u=rw,g=r,o=r"
+        # ex. alpha.install-config.yaml
+        src: "{{ item.install_config_path }}"
+        # ex. alpha/install-config.yaml
+        dest: "{{ item.install_path }}/install-config.yaml"
+
+    - name: "Display current time (before openshift install) for tracking"
+      ansible.builtin.debug:
+        msg: "{{ now() }}"
+
+    - name: "Run the OpenShift install - LONG RUNNING TASK (45 minutes - 2 hours)"
+      poll: 60
+      async: 7200 # 2 hours
+      loop: "{{ clusters }}"
+      loop_control:
+        index_var: i
+      when: "not res_stat.results[i].stat.exists"
+      changed_when: true
+      ansible.builtin.command:
+        cmd: "openshift-install --dir {{ item.install_path }} create cluster > {{ item.install_path }}/install.log.txt"

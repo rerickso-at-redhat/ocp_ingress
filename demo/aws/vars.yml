@@ -1,5 +1,19 @@
 ---
-sandbox_domain: "sandbox647.opentlc.com"
+sandbox_domain: "sandbox.example.com"
+domain_path: "{{ playbook_dir }}/ocp/{{ sandbox_domain }}"
+clusters:
+  - name: alpha
+    install_config_path: "{{ domain_path }}/alpha.install-config.yaml"
+    install_path: "{{ domain_path }}/alpha"
+    kubeconfig_path: "{{ domain_path }}/alpha/auth/kubeconfig"
+    username: admin
+    argo_path: "{{ domain_path }}/alpha/argo"
+  - name: beta
+    install_config_path: "{{ domain_path }}/beta.install-config.yaml"
+    install_path: "{{ domain_path }}/beta"
+    kubeconfig_path: "{{ domain_path }}/beta/auth/kubeconfig"
+    username: admin
+    argo_path: "{{ domain_path }}/beta/argo"
 primary_region: "us-east-2"
 ami_rhel_10: "ami-0912d5cf1d5dff99c"
 supernet_clusters: "10.0.0.0/8"

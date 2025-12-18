@@ -207,6 +207,15 @@
         tags:
           Name: "private-facing-vms"
 
+    - name: "Create domain-specific install folders for each cluster"
+      loop:
+        - alpha
+        - beta
+      ansible.builtin.file:
+        state: directory
+        mode: "u=rwx,g=rw,o=rw"
+        path: "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/{{ item }}"
+
     - name: "Create install-config.yaml Files For Alpha, Beta"
       loop:
         - cluster: alpha
@@ -226,12 +235,12 @@
       ansible.builtin.template:
         src: "install-config.yaml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "ocp/{{ item.cluster }}.install-config.yaml"
+        dest: "ocp/{{ sandbox_domain }}/{{ cluster }}.install-config.yaml"
 
     - name: "Save Generated Facts"
       ansible.builtin.copy:
         mode: "u=rw,g=r,o=r"
-        dest: "generated_facts.yml"
+        dest: "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/generated_facts.yml"
         content: |
           ---
           # Facts generated during AWS bootstrapping

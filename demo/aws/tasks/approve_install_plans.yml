@@ -1,0 +1,42 @@
+---
+- name: "Wait For OSSM & RHSI Install Plans"
+  block:
+    - name: "Get Install Plans - Attempt To Find 2 In 5 Minutes"
+      no_log: true
+      register: res_ip
+      until: "(res_ip.stdout | from_json)['items'] | selectattr('spec.approved', 'equalto', false) | length >= 2"
+      retries: 10
+      delay: 30
+      changed_when: true
+      ansible.builtin.command:
+        cmd: "oc --kubeconfig={{ kubeconfig_path }} --user {{ username }} -n openshift-operators get installplan -o json"
+
+  rescue:
+    # Install Plan Approval "Best Effort" - May require manual approval afterwards
+    - name: "'Get Install Plans Complete'"
+      ansible.builtin.debug:
+        msg: "'Get Install Plans' Complete"
+
+- name: "Set Fact For IPs Requiring Approval"
+  when: "(res_ip.stdout | from_json)['items'] | selectattr('spec.approved', 'equalto', false) | length >= 0"
+  ansible.builtin.set_fact:
+    unapproved_ips: "{{
+      (res_ip.stdout | from_json)['items'] |
+      selectattr('spec.approved', 'equalto', false) |
+      map(attribute='metadata.name')
+    }}"
+
+- name: "Approving The Following Install Plans"
+  when: "unapproved_ips"
+  ansible.builtin.debug:
+    msg: "{{ unapproved_ips }}"
+
+- name: "Approving Install Plans"
+  when: "unapproved_ips"
+  loop: "{{ unapproved_ips }}"
+  loop_control:
+    loop_var: ip
+  changed_when: true
+  ansible.builtin.command:
+    cmd: |
+      oc --kubeconfig={{ kubeconfig_path }} --user {{ username }} -n openshift-operators patch installplan/{{ ip }} --type merge -p '{"spec":{"approved": true}}'

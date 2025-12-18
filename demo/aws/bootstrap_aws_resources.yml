@@ -5,12 +5,7 @@
   gather_facts: false
   vars_files:
     - "vars.yml"
-    - "generated_facts.yml"
-  handlers:
-    - name: "Restart FRR"
-      ansible.builtin.service:
-        name: frr
-        state: restarted
+    - "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/generated_facts.yml"
   tasks:
     - name: Initialize The Demo SSH Key
       amazon.aws.ec2_key:
@@ -239,8 +234,13 @@
   gather_facts: false
   vars_files:
     - "vars.yml"
-    - "generated_facts.yml"
+    - "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/generated_facts.yml"
   become: true
+  handlers:
+    - name: "Restart FRR"
+      ansible.builtin.service:
+        name: frr
+        state: restarted
   tasks:
     - name: "Wait For SSH Connectivity"
       failed_when: false
