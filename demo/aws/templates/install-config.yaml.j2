@@ -33,9 +33,9 @@ networking:
   - 172.30.0.0/16
 platform:
   aws:
-    {% if cluster == 'alpha' %}
+{% if cluster == 'alpha' %}
     lbType: NLB
-    {% endif %}
+{% endif %}
     region: {{ primary_region }}
     #propagateUserTags: true # May be helpful or harmful
     userTags:
