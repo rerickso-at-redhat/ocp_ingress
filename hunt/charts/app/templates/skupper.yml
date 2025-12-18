@@ -18,7 +18,7 @@ metadata:
   name: {{ .Values.app.name }}
   namespace: {{ .Values.app.name }}
 spec:
-  port: 80
+  port: 8080
   routingKey: {{ .Values.app.name }}
   selector: app={{ .Values.app.name }}
   type: tcp
@@ -45,7 +45,7 @@ metadata:
 spec:
   routingKey: {{ .Values.app.name }}
   host: {{ .Values.app.name }}
-  port: 80
+  port: 8080
   type: tcp
 ...
 {{ end }}
