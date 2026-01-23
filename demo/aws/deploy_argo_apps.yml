@@ -43,7 +43,7 @@
                 hostname: "app1-anycast.{{ sandbox_domain }}"
         rhsi:
           rhsi:
-            starting_csv: "skupper-operator.v2.1.2-rh-2"
+            channel: "stable-2"
       - name: beta
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:

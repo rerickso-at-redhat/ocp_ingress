@@ -8,6 +8,6 @@ spec:
   name: skupper-operator
   sourceNamespace: openshift-marketplace
   source: redhat-operators
-  channel: stable-2
+  channel: {{ $.Values.rhsi.subscription.channel }}
   installPlanApproval: Automatic
 ...
