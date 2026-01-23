@@ -5,10 +5,9 @@ metadata:
   name: skupper-operator
   namespace: openshift-operators
 spec:
+  name: skupper-operator
+  sourceNamespace: openshift-marketplace
+  source: redhat-operators
   channel: stable-2
   installPlanApproval: Automatic
-  name: skupper-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-  #startingCSV: "{{ .Values.rhsi.starting_csv }}"
 ...

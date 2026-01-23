@@ -21,7 +21,7 @@ metadata:
   name: metallb-operator-sub
   namespace: metallb-system
 spec:
-  channel: stable
   name: metallb-operator
-  source: redhat-operators
   sourceNamespace: openshift-marketplace
+  source: redhat-operators
+  channel: stable

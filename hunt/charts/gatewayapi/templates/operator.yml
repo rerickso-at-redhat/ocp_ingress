@@ -16,6 +16,5 @@ spec:
         memory: 64Mi
   installPlanApproval: Automatic # Seemingly the only option is Manual but Automatic highlights the difference in Argo
   name: servicemeshoperator3
-  source: redhat-operators
   sourceNamespace: openshift-marketplace
-  #startingCSV: servicemeshoperator3.v3.2.1
+  source: redhat-operators
