@@ -46,5 +46,5 @@
         index_var: i
       when: "not res_stat.results[i].stat.exists"
       changed_when: true
-      ansible.builtin.command:
+      ansible.builtin.shell:
         cmd: "openshift-install --dir {{ item.install_path }} create cluster > {{ item.install_path }}/install.log.txt"
