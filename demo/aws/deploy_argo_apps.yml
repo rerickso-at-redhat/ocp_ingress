@@ -43,7 +43,8 @@
                 hostname: "app1-anycast.{{ sandbox_domain }}"
         rhsi:
           rhsi:
-            channel: "stable-2"
+            subscription:
+              channel: "stable-2"
       - name: beta
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:
@@ -72,7 +73,8 @@
                 hostname: "app2-anycast.{{ sandbox_domain }}"
         rhsi:
           rhsi:
-            starting_csv: "skupper-operator.v2.1.2-rh-2"
+            subscription:
+              channel: "stable-2"
   tasks:
     - name: "Create Directories For Each Cluster"
       loop: "{{ clusters }}"
