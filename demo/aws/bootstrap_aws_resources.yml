@@ -127,9 +127,11 @@
         # TOR gets the manually built security group only
         # Alpha gets the alpha node security group only
         # Beta gets the beta node security group only
-        security_groups: "{{ ['tor-bgp-peering'] if item.cluster == 'tor' else [] + [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster
-          + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'alpha' else [] + [res_security_groups.security_groups | selectattr('group_name',
-          'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'beta' else [] }}"
+        security_groups: "{{
+          ['tor-bgp-peering'] if item.cluster == 'tor' else [] +
+          [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'alpha' else [] +
+          [res_security_groups.security_groups | selectattr('group_name', 'match', item.cluster + '-.*-node') | map(attribute='group_name') | first] if item.cluster == 'beta' else []
+        }}"
         tags:
           Name: "{{ item.eni_name }}"
 
