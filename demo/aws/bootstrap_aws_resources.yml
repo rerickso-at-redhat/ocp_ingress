@@ -28,8 +28,13 @@
         instance_type: "t2.small"
         security_group: "public-facing-vms"
         image_id: "{{ ami_rhel_10 }}"
-        network_interfaces:
-          - assign_public_ip: true
+
+    - name: Create a public ip (EIP) for Bastion
+      register: res_bastion_eip
+      amazon.aws.ec2_eip:
+        device_id: "{{ res_bastion.instance_ids[0] }}"
+        tags:
+          Name: "eip-ec2-bastion"
 
     - name: "Create Security Group For BGP Ingress And Peering (tor-side)"
       amazon.aws.ec2_security_group:
@@ -181,20 +186,19 @@
         type: "A"
         record: "bastion.{{ sandbox_domain }}"
         value:
-          - "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
+          - "{{ res_bastion_eip.public_ip }}"
 
-    # TODO: the instances must be running to have a public IP available to add the host ...
     - name: "Add the Bastion AWS host to the Ansible Inventory"
       ansible.builtin.add_host:
         hostname: "tor-bastion"
         groups:
           - "bastion"
-        ansible_ssh_host: "{{ res_bastion.instances[0].network_interfaces[0].public_dns_name | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_dns_name }}"
+        ansible_ssh_host: "{{ res_bastion_eip.public_ip }}"
         ansible_ssh_port: 22
         ansible_ssh_common_args: "-o StrictHostKeyChecking=false"
         ansible_user: "ec2-user"
         ansible_ssh_private_key_file: "secrets/key-aws-demo.pem"
-        public_ip_address: "{{ res_bastion.instances[0].network_interfaces[0].public_ip_address | default(false) or res_bastion.instances[0].network_interfaces[0].association.public_ip }}"
+        public_ip_address: "{{ res_bastion_eip.public_ip }}"
 
     - name: "Add the Client AWS host to the Ansible Inventory"
       ansible.builtin.add_host:
