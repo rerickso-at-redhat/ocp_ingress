@@ -1,0 +1,24 @@
+{{- range $.Values.gatewayapi.gateways }}
+{{ if .infra_configmap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace }}
+data:
+  deployment: |
+    spec:
+      template:
+        spec:
+          containers:
+          - name: istio-proxy
+            readinessProbe:
+              exec:
+                command: {{ .healthcheck_command }}
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 2
+              failureThreshold: 3
+              successThreshold: 1
+{{ end }}
+{{- end }}
