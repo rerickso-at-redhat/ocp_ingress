@@ -354,11 +354,17 @@
            bgp router-id {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}
            bgp bestpath as-path multipath-relax
            neighbor {{ first_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ first_neighbor_alpha_ip }} disable-connected-check
            neighbor {{ second_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ second_neighbor_alpha_ip }} disable-connected-check
            neighbor {{ third_neighbor_alpha_ip }} remote-as 65001
+           neighbor {{ third_neighbor_alpha_ip }} disable-connected-check
            neighbor {{ first_neighbor_beta_ip }} remote-as 65002
+           neighbor {{ first_neighbor_beta_ip }} disable-connected-check
            neighbor {{ second_neighbor_beta_ip }} remote-as 65002
+           neighbor {{ second_neighbor_beta_ip }} disable-connected-check
            neighbor {{ third_neighbor_beta_ip }} remote-as 65002
+           neighbor {{ third_neighbor_beta_ip }} disable-connected-check
            address-family ipv4 unicast
             neighbor {{ first_neighbor_alpha_ip }} soft-reconfiguration inbound
             neighbor {{ first_neighbor_alpha_ip }} route-map ACCEPT_CLUSTERS in
