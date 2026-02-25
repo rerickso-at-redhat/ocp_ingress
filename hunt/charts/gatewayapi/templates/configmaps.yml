@@ -14,7 +14,7 @@ data:
           - name: istio-proxy
             readinessProbe:
               exec:
-                command: {{ .healthcheck_command }}
+                command: {{ .healthcheck_command | toJson }}
               initialDelaySeconds: 5
               periodSeconds: 10
               timeoutSeconds: 2
