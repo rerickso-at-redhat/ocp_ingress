@@ -1,3 +1,58 @@
+# Demo Prerequisites
+
+There are many ways to install each prerequisite, from package managers to Ansible Execution Environments. Feel free to research/install/configure each as appropriate for your needs.
+
+- `aws`
+
+https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+```
+dnf install -y aws || apt install -y awscli
+```
+
+- `ansible`
+
+https://docs.ansible.com/projects/ansible/latest/installation_guide/index.html
+
+```
+dnf install -y ansible || apt install -y ansible
+```
+
+You must also ensure `boto3 >= 1.34.0` and `botocore >= 1.34.0` are available in your python environment for the Ansible AWS modules to function.
+
+```
+pip3 install boto3 botocore
+```
+
+```
+$ pip3 freeze | grep boto
+boto3==1.42.47
+botocore==1.42.47
+```
+
+- `openshift-install` and `oc`
+
+https://console.redhat.com/openshift/install/metal/agent-based
+
+The most simply way is to download the `openshift-install` and `oc` binaries directly from Red Hat at the link above.
+
+Where/how you place them is up to you - bins and aliases should both work fine.
+
+```
+$ which openshift-install oc
+~/.local/bin/openshift-install
+~/.local/bin/oc
+```
+
+```
+$ alias openshift-install="/path/to/openshift-install"
+$ alias oc="/path/to/oc"
+
+$ which openshift-install oc
+alias openshift-install='/path/to/openshift-install'
+alias oc='/path/to/oc'
+```
+
 # Demo Quickstart
 1. Run `aws configure --profile sandboxXYZ`, or create `~/.aws/config` and `~/.aws/credentials` files (or your preferred path with related export statements)
 
@@ -9,65 +64,9 @@ Default region name [None]: ANY
 Default output format [None]: ANY
 ```
 
-2. Ensure `openshift-install` is available in your $PATH (via a bin/, alias, etc) and on the correct version you'd like to deploy
+2. `cd demo/aws`
 
-https://console.redhat.com/openshift/install/metal/agent-based
-
-```
-$ which openshift-install
-~/.local/bin/openshift-install
-```
-
-```
-$ alias openshift-install="/path/to/openshift-install"
-$ which openshift-install
-alias openshift-install='/path/to/openshift-install'
-```
-
-3. Ensure `oc` is available in your $PATH (via a bin/, alias, etc) and on the correct version
-
-https://console.redhat.com/openshift/install/metal/agent-based
-
-```
-$ which oc
-~/.local/bin/oc
-```
-
-```
-$ alias oc="/path/to/oc"
-$ which oc
-alias oc='/path/to/oc'
-```
-
-4. Ensure `ansible` is installed
-
-Ansible can be installed in your local system or if you wanted to add the openshift-install and oc binaries to an ansible execution environment then you could do that as well (not described in this readme).
-
-```
-dnf install ansible
-```
-
-```
-apt install ansible
-```
-
-5. Ensure `boto3 >= 1.34.0` and `botocore >= 1.34.0` are available in your python environment (ansible AWS module requirement)
-
-These can be installed in your local system or if you wanted to add the openshift-install and oc binaries to an ansible execution environment then you could do that as well (not described in this readme).
-
-```
-$ pip3 freeze | grep boto
-boto3==1.42.47
-botocore==1.42.47
-```
-
-```
-pip3 install boto3 botocore
-```
-
-6. `cd demo/aws`
-
-7. `AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml`
+3. `AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml`
 
 # H.U.N.T. Setup
 
