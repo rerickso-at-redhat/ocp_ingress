@@ -2,7 +2,7 @@
 
 There are many ways to install each prerequisite, from package managers to Ansible Execution Environments. Feel free to research/install/configure each as appropriate for your needs.
 
-- `aws`
+## `aws`
 
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
@@ -10,7 +10,7 @@ https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 dnf install -y aws || apt install -y awscli
 ```
 
-- `ansible`
+## `ansible`
 
 https://docs.ansible.com/projects/ansible/latest/installation_guide/index.html
 
@@ -30,7 +30,7 @@ boto3==1.42.47
 botocore==1.42.47
 ```
 
-- `openshift-install` and `oc`
+## `openshift-install` and `oc`
 
 https://console.redhat.com/openshift/install/metal/agent-based
 
@@ -54,7 +54,8 @@ alias oc='/path/to/oc'
 ```
 
 # Demo Quickstart
-1. Run `aws configure --profile sandboxXYZ`, or create `~/.aws/config` and `~/.aws/credentials` files (or your preferred path with related export statements)
+1. Run `aws configure --profile sandboxXYZ`
+   (or create `~/.aws/config` and `~/.aws/credentials` files, or your preferred path with related export statements)
 
 ```
 $ aws configure --profile sandboxXYZ
