@@ -1,5 +1,6 @@
 # Demo Quickstart
-1. run `aws configure --profile sandboxXYZ`, or create `~/.aws/config` and `~/.aws/credentials` files (or your preferred path with related export statements)
+1. Run `aws configure --profile sandboxXYZ`, or create `~/.aws/config` and `~/.aws/credentials` files (or your preferred path with related export statements)
+
 ```
 $ aws configure --profile sandboxXYZ
 AWS Access Key ID [None]: Paste AWS_ACCESS_KEY_ID
@@ -7,8 +8,66 @@ AWS Secret Access Key [None]: Paste AWS_SECRET_ACCESS_KEY
 Default region name [None]: ANY
 Default output format [None]: ANY
 ```
-2. `cd demo/aws`
-3. `AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml`
+
+2. Ensure `openshift-install` is available in your $PATH (via a bin/, alias, etc) and on the correct version you'd like to deploy
+
+https://console.redhat.com/openshift/install/metal/agent-based
+
+```
+$ which openshift-install
+~/.local/bin/openshift-install
+```
+
+```
+$ alias openshift-install="/path/to/openshift-install"
+$ which openshift-install
+alias openshift-install='/path/to/openshift-install'
+```
+
+3. Ensure `oc` is available in your $PATH (via a bin/, alias, etc) and on the correct version
+
+https://console.redhat.com/openshift/install/metal/agent-based
+
+```
+$ which oc
+~/.local/bin/oc
+```
+
+```
+$ alias oc="/path/to/oc"
+$ which oc
+alias oc='/path/to/oc'
+```
+
+4. Ensure `ansible` is installed
+
+Ansible can be installed in your local system or if you wanted to add the openshift-install and oc binaries to an ansible execution environment then you could do that as well (not described in this readme).
+
+```
+dnf install ansible
+```
+
+```
+apt install ansible
+```
+
+5. Ensure `boto3 >= 1.34.0` and `botocore >= 1.34.0` are available in your python environment (ansible AWS module requirement)
+
+These can be installed in your local system or if you wanted to add the openshift-install and oc binaries to an ansible execution environment then you could do that as well (not described in this readme).
+
+```
+$ pip3 freeze | grep boto
+boto3==1.42.47
+botocore==1.42.47
+```
+
+```
+pip3 install boto3 botocore
+```
+
+6. `cd demo/aws`
+
+7. `AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml`
 
 # H.U.N.T. Setup
 
