@@ -7,7 +7,7 @@ There are many ways to install each prerequisite, from package managers to Ansib
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
 ```
-dnf install -y aws || apt install -y awscli
+dnf install -y awscli2 || apt install -y awscli
 ```
 
 ## `ansible`
