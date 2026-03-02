@@ -1,11 +1,12 @@
 ---
-- name: "Get Certificate Signing Requests - Any in 5 minutes"
+- name: "Get Certificate Signing Requests"
   block:
-    - name: "Get Certificate Signing Requests - Any in 5 minutes" # noqa: risky-shell-pipe
+    - name: "Get Certificate Signing Requests - Seconds To Wait: {{ retries | int * delay | int }}" # noqa: risky-shell-pipe
+      no_log: true
       register: res_csr
       until: "res_csr.stdout | length > 0"
-      retries: 10
-      delay: 30
+      retries: "{{ retries }}"
+      delay: "{{ delay }}"
       changed_when: true
       ansible.builtin.shell:
         cmd: "oc --kubeconfig={{ kubeconfig_path }} --user {{ username }} get csr --no-headers | grep -i pending | awk '{ print $1 }'"
@@ -21,12 +22,12 @@
     unapproved_csrs: "{{ res_csr.stdout.split('\n') }}"
 
 - name: "Approving The Following Install Plans"
-  when: "unapproved_csrs"
+  when: "unapproved_csrs is defined"
   ansible.builtin.debug:
     msg: "{{ unapproved_csrs }}"
 
 - name: "Approving Certificate Signing Requests"
-  when: "unapproved_csrs"
+  when: "unapproved_csrs is defined"
   loop: "{{ unapproved_csrs }}"
   loop_control:
     loop_var: csr

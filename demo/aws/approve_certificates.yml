@@ -1,4 +1,8 @@
 ---
+# Sometimes there can be a failure to approve the CSRs automatically
+# If that happens, the GUI doesnt come up on the next reboot / after 24 hours
+# This playbook will resolve any initial pending CSRs, then check for more.
+# If there are no initial CSRs, then it will skip any additional checks.
 - name: "Approve Certificate Signing Requests"
   hosts: clusters
   connection: local
@@ -10,13 +14,25 @@
     - vars.yml
   tasks:
     - name: "Approve Certificate Signing Requests"
+      vars:
+        retries: 0
+        delay: 0
       ansible.builtin.include_tasks:
         file: "tasks/approve_certificates.yml"
 
-    - name: "Approve Certificate Signing Requests"
-      ansible.builtin.include_tasks:
-        file: "tasks/approve_certificates.yml"
+    - name: "Check and Approve Additional CSRs"
+      when: "unapproved_csrs is defined"
+      block:
+        - name: "Approve Certificate Signing Requests"
+          vars:
+            retries: 6
+            delay: 30
+          ansible.builtin.include_tasks:
+            file: "tasks/approve_certificates.yml"
 
-    - name: "Approve Certificate Signing Requests"
-      ansible.builtin.include_tasks:
-        file: "tasks/approve_certificates.yml"
+        - name: "Approve Certificate Signing Requests"
+          vars:
+            retries: 6
+            delay: 30
+          ansible.builtin.include_tasks:
+            file: "tasks/approve_certificates.yml"
