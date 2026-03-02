@@ -1,5 +1,7 @@
 ---
-sandbox_domain: "sandbox.example.com"
+# CURRENTLY DUPLICATED VARS FOR DUALITY ACROSS HOST-BASED AND VARS-BASED PLAYBOOKS
+## NOTE: It is assumed that AWS_PROFILE is used which will cause the correct sandbox_domain to be populated
+sandbox_domain: "{{ lookup('ansible.builtin.env', 'AWS_PROFILE') | default('sandboxXYZ') }}.opentlc.com"
 domain_path: "{{ playbook_dir }}/ocp/{{ sandbox_domain }}"
 clusters:
   - name: alpha
@@ -14,6 +16,8 @@ clusters:
     kubeconfig_path: "{{ domain_path }}/beta/auth/kubeconfig"
     username: admin
     argo_path: "{{ domain_path }}/beta/argo"
+# END DUPLICATED VARS
+
 primary_region: "us-east-2"
 ami_rhel_10: "ami-0912d5cf1d5dff99c"
 supernet_clusters: "10.0.0.0/8"
