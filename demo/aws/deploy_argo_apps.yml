@@ -39,11 +39,11 @@
                 name: "anycast-gateway-shared"
                 infra_configmap: "anycast-gateway-shared"
                 healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app1"]
-                ipaddress: "10.255.255.1"
+                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-shared') | first).ip }}"
                 hostname: "anycast.{{ sandbox_domain }}"
               - namespace: "anycast-gateways"
                 name: "anycast-gateway-dedicated-app1"
-                ipaddress: "10.255.255.11"
+                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-dedicated-app1') | first).ip }}"
                 hostname: "app1-anycast.{{ sandbox_domain }}"
         rhsi:
           rhsi:
@@ -66,18 +66,18 @@
           gatewayapi:
             namespace: "anycast-gateways"
             subscription:
-              channel: stable-3.2
+              channel: stable
             # NOTE: Very limited customization scope - extend template to fully use gatewayapi
             gateways:
               - namespace: "anycast-gateways"
                 name: "anycast-gateway-shared"
                 infra_configmap: "anycast-gateway-shared"
                 healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app2"]
-                ipaddress: "10.255.255.1"
+                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-shared') | first).ip }}"
                 hostname: "anycast.{{ sandbox_domain }}"
               - namespace: "anycast-gateways"
                 name: "anycast-gateway-dedicated-app2"
-                ipaddress: "10.255.255.12"
+                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-dedicated-app2') | first).ip }}"
                 hostname: "app2-anycast.{{ sandbox_domain }}"
         rhsi:
           rhsi:

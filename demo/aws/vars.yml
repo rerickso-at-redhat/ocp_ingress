@@ -16,6 +16,13 @@ clusters:
     kubeconfig_path: "{{ domain_path }}/beta/auth/kubeconfig"
     username: admin
     argo_path: "{{ domain_path }}/beta/argo"
+gateways:
+  - name: anycast-gateway-shared
+    ip: 10.255.255.1
+  - name: anycast-gateway-dedicated-app1
+    ip: 10.255.255.11
+  - name: anycast-gateway-dedicated-app2
+    ip: 10.255.255.12
 # END DUPLICATED VARS
 
 primary_region: "us-east-2"
