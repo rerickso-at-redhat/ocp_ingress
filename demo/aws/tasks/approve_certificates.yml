@@ -1,0 +1,36 @@
+---
+- name: "Get Certificate Signing Requests - Any in 5 minutes"
+  block:
+    - name: "Get Certificate Signing Requests - Any in 5 minutes" # noqa: risky-shell-pipe
+      register: res_csr
+      until: "res_csr.stdout | length > 0"
+      retries: 10
+      delay: 30
+      changed_when: true
+      ansible.builtin.shell:
+        cmd: "oc --kubeconfig={{ kubeconfig_path }} --user {{ username }} get csr --no-headers | grep -i pending | awk '{ print $1 }'"
+
+  rescue:
+    - name: "'Get Certificates' Complete - No Certificates Found"
+      ansible.builtin.debug:
+        msg: "'Get Certificates' Complete - No Certificates Found"
+
+- name: "Set Fact For CSRs Requiring Approval"
+  when: "res_csr.stdout | length > 0"
+  ansible.builtin.set_fact:
+    unapproved_csrs: "{{ res_csr.stdout.split('\n') }}"
+
+- name: "Approving The Following Install Plans"
+  when: "unapproved_csrs"
+  ansible.builtin.debug:
+    msg: "{{ unapproved_csrs }}"
+
+- name: "Approving Certificate Signing Requests"
+  when: "unapproved_csrs"
+  loop: "{{ unapproved_csrs }}"
+  loop_control:
+    loop_var: csr
+  changed_when: true
+  ansible.builtin.command:
+    cmd: |
+      oc --kubeconfig={{ kubeconfig_path }} --user {{ username }} adm certificate approve {{ csr }}

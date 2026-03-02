@@ -1,0 +1,22 @@
+---
+- name: "Approve Certificate Signing Requests"
+  hosts: clusters
+  connection: local
+  gather_facts: false
+# vars:
+#   kubeconfig_path: FROM HOST
+#   username: FROM HOST
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: "Approve Certificate Signing Requests"
+      ansible.builtin.include_tasks:
+        file: "tasks/approve_certificates.yml"
+
+    - name: "Approve Certificate Signing Requests"
+      ansible.builtin.include_tasks:
+        file: "tasks/approve_certificates.yml"
+
+    - name: "Approve Certificate Signing Requests"
+      ansible.builtin.include_tasks:
+        file: "tasks/approve_certificates.yml"

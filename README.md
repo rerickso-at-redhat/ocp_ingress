@@ -53,6 +53,22 @@ alias openshift-install='/path/to/openshift-install'
 alias oc='/path/to/oc'
 ```
 
+# An SSH Key for OCP
+```
+ssh-keygen -f secrets/id_rsa_ocp
+```
+
+# A secrets/secrets.yml
+
+Required:
+- Your Red Hat Pull Secret (ipi_pull_secret)
+- The Public SSH Key From id_rsa_ocp (ipi_ssh_key)
+
+```
+cp secrets/secrets.yml.example secrets/secrets.yml
+vim secrets/secrets.yml
+```
+
 # Demo Quickstart
 1. Run `aws configure --profile sandboxXYZ`
    (or create `~/.aws/config` and `~/.aws/credentials` files, or your preferred path with related export statements)
@@ -67,7 +83,7 @@ Default output format [None]: ANY
 
 2. `cd demo/aws`
 
-3. `AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml`
+3. `AWS_PROFILE=sandboxXYZ ansible-playbook -i inventory/clusters.yml demo.yml`
 
 # H.U.N.T. Setup
 

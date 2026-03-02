@@ -12,16 +12,23 @@
         ex. AWS_PROFILE=example ansible-playbook demo.yml
       To run any playbook by itself, you can simply use "--tags \{\{ playbook_name \}\}".
       Playbooks:
-        - bootstrap_aws_network.yml
-        - install_openshift.yml
-        - bootstrap_aws_resources.yml
-        - deploy_argo_apps.yml
-        - deploy_rhsi_tokens.yml
+        - bootstrap_aws_network.yml (--tags bootstrap_aws_network)
+        - install_openshift.yml (--tags install_openshift)
+        - bootstrap_aws_resources.yml (--tags bootstrap_aws_resources)
+        - approve_certificates.yml (--tags approve_certificates.yml)
+        - deploy_argo_apps.yml (--tags deploy_argo_apps)
+        - approve_install_plans.yml (--tags approve_install_plans)
+        - deploy_rhsi_tokens.yml (--tags deploy_rhsi_tokens)
 
   tasks:
     - name: "README"
       ansible.builtin.debug:
         msg: "{{ readme.split('\n') }}"
+
+    - name: "REQUIRED ENV - AWS_PROFILE"
+      when: "not lookup('ansible.builtin.env', 'AWS_PROFILE')"
+      ansible.builtin.fail:
+        msg: "'AWS_PROFILE' is a required environment variable. Specify via: 'AWS_PROFILE=sandboxXYZ ansible-playbook ...'"
 
 - name: "Bootstrap AWS (tag: bootstrap_aws_network)"
   tags: "bootstrap_aws_network"
@@ -35,12 +42,15 @@
   tags: "bootstrap_aws_resources"
   ansible.builtin.import_playbook: "bootstrap_aws_resources.yml"
 
+- name: "Approve Certificate Signing Requests (tag: approve_certificates)"
+  tags: "approve_certificates"
+  ansible.builtin.import_playbook: "approve_certificates.yml"
+
 - name: "Deploy Argo Apps (tag: deploy_argo_apps)"
   tags: "deploy_argo_apps"
   ansible.builtin.import_playbook: "deploy_argo_apps.yml"
 
-# TODO: remove the manual step of approving installplans directly due to the gatewayapi and its rhsi interplay
-- name: "Approve Install Plans"
+- name: "Approve Install Plans (tag: approve_install_plans)"
   tags: "approve_install_plans"
   ansible.builtin.import_playbook: "approve_install_plans.yml"
 
