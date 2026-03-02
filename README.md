@@ -146,5 +146,5 @@ demo/aws/ocp/sandboxXYZ.opentlc.com/
 It should be safe to re-run the whole `demo.yml` playbook but if you would like to specifically run just the argo application deployment and following playbooks you can use the following:
 
 ```
-AWS_PROFILE=sandboxXYZ ansible-playbook demo.yml --tags deploy_argo_apps,approve_install_plans,deploy_rhsi_tokens
+AWS_PROFILE=sandboxXYZ ansible-playbook -i inventory/clusters.yml demo.yml --tags deploy_argo_apps,approve_install_plans,deploy_rhsi_tokens
 ```
