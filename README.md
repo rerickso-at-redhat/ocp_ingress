@@ -53,12 +53,14 @@ alias openshift-install='/path/to/openshift-install'
 alias oc='/path/to/oc'
 ```
 
-# An SSH Key for OCP
+## Secrets
+
+### An SSH Key for OCP
 ```
 ssh-keygen -f secrets/id_rsa_ocp
 ```
 
-# A secrets/secrets.yml
+### A Pull Secret and Public SSH Key (secrets.yml)
 
 Required:
 - Your Red Hat Pull Secret (ipi_pull_secret)
