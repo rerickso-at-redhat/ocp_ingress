@@ -32,7 +32,7 @@
           gatewayapi:
             namespace: "anycast-gateways"
             subscription:
-              channel: stable-3.2
+              channel: stable
             # NOTE: Very limited customization scope - extend template to fully use gatewayapi
             gateways:
               - namespace: "anycast-gateways"
