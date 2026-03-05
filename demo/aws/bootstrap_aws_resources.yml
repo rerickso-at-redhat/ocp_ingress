@@ -20,6 +20,7 @@
         dest: "secrets/key-aws-demo.pem"
 
     - name: Initialize Bastion EC2 Instance
+      tags: configure_vms
       register: res_bastion
       amazon.aws.ec2_instance:
         name: "tor-bastion"
@@ -30,6 +31,7 @@
         image_id: "{{ ami_rhel_10 }}"
 
     - name: Create a public ip (EIP) for Bastion
+      tags: configure_vms
       register: res_bastion_eip
       amazon.aws.ec2_eip:
         device_id: "{{ res_bastion.instance_ids[0] }}"
@@ -73,6 +75,8 @@
             cidr_ip: "{{ supernet_beta }}"
 
     - name: "Get Security Groups"
+      tags:
+        - configure_vms
       register: res_security_groups
       amazon.aws.ec2_security_group_info:
 
@@ -124,6 +128,7 @@
 
     # NOTE: assumes a very specific formatting of the subnet_reservations variable passed from bootstrapping
     - name: "Create Network Interfaces For TOR Subnet IPv4 Reservations"
+      tags: configure_vms
       register: res_enis
       loop: "{{ subnet_reservations }}"
       amazon.aws.ec2_eni:
@@ -141,6 +146,7 @@
           Name: "{{ item.eni_name }}"
 
     - name: Initialize the client ec2 instance
+      tags: configure_vms
       register: ec2_client
       amazon.aws.ec2_instance:
         name: "tor-client"
@@ -151,14 +157,17 @@
         security_group: "private-facing-vms"
 
     - name: "Get EC2 Instances"
+      tags: configure_vms
       register: res_ec2_instances
       amazon.aws.ec2_instance_info:
 
     - name: "Get Worker Instances"
+      tags: configure_vms
       ansible.builtin.set_fact:
         worker_instances: "{{ res_ec2_instances.instances | selectattr('tags.Name', 'match', '.*-worker-.*') }}"
 
     - name: Initialize the bgp-router ec2 instance
+      tags: configure_vms
       register: ec2_router_bgp
       amazon.aws.ec2_instance:
         name: "tor-router-bgp"
@@ -178,6 +187,17 @@
           - id: "{{ res_enis.results[2].interface.id }}"
             device_index: 2
 
+    - name: Create a public ip (EIP) for tor-router-bgp
+      tags: configure_vms
+      register: res_router_eip
+      amazon.aws.ec2_eip:
+        #device_id: "{{ ec2_router_bgp.instance_ids[0] }}"
+        device_id: "{{ res_enis.results[0].interface.id }}"
+        in_vpc: true
+        #private_ip_address: "10.0.0.96"
+        tags:
+          Name: "eip-ec2-router"
+
     - name: "Add Route 53 Entry For Bastion"
       amazon.aws.route53:
         state: present
@@ -188,7 +208,18 @@
         value:
           - "{{ res_bastion_eip.public_ip }}"
 
+    - name: "Add Route 53 Entry For Router"
+      amazon.aws.route53:
+        state: present
+        overwrite: true
+        zone: "{{ sandbox_domain }}"
+        type: "A"
+        record: "anycast.{{ sandbox_domain }}"
+        value:
+          - "{{ res_router_eip.public_ip }}"
+
     - name: "Add the Bastion AWS host to the Ansible Inventory"
+      tags: configure_vms
       ansible.builtin.add_host:
         hostname: "tor-bastion"
         groups:
@@ -201,6 +232,7 @@
         public_ip_address: "{{ res_bastion_eip.public_ip }}"
 
     - name: "Add the Client AWS host to the Ansible Inventory"
+      tags: configure_vms
       ansible.builtin.add_host:
         hostname: "tor-client"
         groups:
@@ -213,6 +245,7 @@
 
     # TODO: copy the key over to the bastion
     - name: "Add the BGP AWS host to the Ansible Inventory"
+      tags: configure_vms
       ansible.builtin.add_host:
         hostname: "tor-bgp-router"
         groups:
@@ -255,7 +288,9 @@
         cmd: |
           aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
 
+# NOTE: Currently this play is stuck in this playbook due to add_host dependency from previous play
 - name: "Configure the BGP Router VM"
+  tags: configure_vms
   hosts: bgp
   gather_facts: false
   vars_files:
@@ -384,7 +419,7 @@
             neighbor {{ third_neighbor_beta_ip }} soft-reconfiguration inbound
             neighbor {{ third_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
             !
-            maximum-paths 4
+            maximum-paths 6
            exit-address-family
           exit
           !
@@ -398,7 +433,28 @@
         enabled: true
         state: started
 
+    - name: "Modify Cluster Routes To Have Matching Metrics"
+      loop:
+        - "cloud-init enX1" # AWS Default Interface Naming
+        - "cloud-init enX2" # AWS Default Interface Naming
+      ansible.builtin.shell:
+        cmd: "nmcli connection modify '{{ item }}' ipv4.route-metric 101 && nmcli connection up '{{ item }}'"
+
+    - name: "Create Local DNS Entries For Each Gateway"
+      vars:
+        etc_hosts:
+          - name: "{{ gateways['anycast-gateway-shared-alpha']['hostname'] }}" # alpha & beta have the same IP
+            ip: "{{ gateways['anycast-gateway-shared-alpha']['ip'] }}" # alpha & beta have the same IP
+          - name: "{{ gateways['anycast-gateway-dedicated-app1']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app1']['ip'] }}"
+          - name: "{{ gateways['anycast-gateway-dedicated-app2']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app2']['ip'] }}"
+      ansible.builtin.template:
+        src: "hosts.j2"
+        dest: "/etc/hosts"
+
 - name: "Configure the Client VM"
+  tags: configure_vms
   hosts: client
   gather_facts: false
   vars_files:
@@ -425,3 +481,17 @@
         - "'File exists' not in res_route.stderr"
       ansible.builtin.command:
         cmd: "ip route add {{ supernet_anycast }} via {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}"
+
+    - name: "Create Local DNS Entries For Each Gateway"
+      vars:
+        etc_hosts:
+          - name: "{{ gateways['anycast-gateway-shared-alpha']['hostname'] }}" # alpha & beta have the same IP
+            ip: "{{ gateways['anycast-gateway-shared-alpha']['ip'] }}" # alpha & beta have the same IP
+          - name: "{{ gateways['anycast-gateway-dedicated-app1']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app1']['ip'] }}"
+          - name: "{{ gateways['anycast-gateway-dedicated-app2']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app2']['ip'] }}"
+      ansible.builtin.template:
+        src: "hosts.j2"
+        dest: "/etc/hosts"
+
