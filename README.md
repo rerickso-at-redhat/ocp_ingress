@@ -60,6 +60,7 @@ The skupper cli can be installed by navigating to the binary download at Red Hat
 The Red Hat RHSI binary is recommended as we are using OpenShift and RHSI directly, not an opensource skupper install.
 
 https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=redhat.service.interconnect
+
 (https://access.redhat.com/downloads -> Red Hat Service Interconnect)
 
 https://skupper.io/v1/install/
