@@ -33,18 +33,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            # NOTE: Very limited customization scope - extend template to fully use gatewayapi
-            gateways:
-              - namespace: "anycast-gateways"
-                name: "anycast-gateway-shared"
-                infra_configmap: "anycast-gateway-shared"
-                healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app1"]
-                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-shared') | first).ip }}"
-                hostname: "anycast.{{ sandbox_domain }}"
-              - namespace: "anycast-gateways"
-                name: "anycast-gateway-dedicated-app1"
-                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-dedicated-app1') | first).ip }}"
-                hostname: "app1-anycast.{{ sandbox_domain }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared-alpha'], gateways['anycast-gateway-dedicated-app1'] ] }}"
         rhsi:
           rhsi:
             subscription:
@@ -67,18 +56,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            # NOTE: Very limited customization scope - extend template to fully use gatewayapi
-            gateways:
-              - namespace: "anycast-gateways"
-                name: "anycast-gateway-shared"
-                infra_configmap: "anycast-gateway-shared"
-                healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app2"]
-                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-shared') | first).ip }}"
-                hostname: "anycast.{{ sandbox_domain }}"
-              - namespace: "anycast-gateways"
-                name: "anycast-gateway-dedicated-app2"
-                ipaddress: "{{ (gateways | selectattr('name', 'eq', 'anycast-gateway-dedicated-app2') | first).ip }}"
-                hostname: "app2-anycast.{{ sandbox_domain }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared-beta'], gateways['anycast-gateway-dedicated-app2'] ] }}"
         rhsi:
           rhsi:
             subscription:
