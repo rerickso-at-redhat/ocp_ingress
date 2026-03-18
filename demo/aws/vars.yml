@@ -17,12 +17,30 @@ clusters:
     username: admin
     argo_path: "{{ domain_path }}/beta/argo"
 gateways:
-  - name: anycast-gateway-shared
+  anycast-gateway-shared-alpha:
+    name: anycast-gateway-shared
+    namespace: anycast-gateways
     ip: 10.255.255.1
-  - name: anycast-gateway-dedicated-app1
+    hostname: "anycast.{{ sandbox_domain }}"
+    #infra_configmap: anycast-gateway-shared # The name of the configmap to use
+    healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app1"]
+  anycast-gateway-shared-beta:
+    name: anycast-gateway-shared
+    namespace: anycast-gateways
+    ip: 10.255.255.1
+    hostname: "anycast.{{ sandbox_domain }}"
+    #infra_configmap: anycast-gateway-shared # The name of the configmap to use
+    healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app2"]
+  anycast-gateway-dedicated-app1:
+    name: anycast-gateway-dedicated-app1
+    namespace: anycast-gateways
     ip: 10.255.255.11
-  - name: anycast-gateway-dedicated-app2
+    hostname: "app1-anycast.{{ sandbox_domain }}"
+  anycast-gateway-dedicated-app2:
+    name: anycast-gateway-dedicated-app2
+    namespace: anycast-gateways
     ip: 10.255.255.12
+    hostname: "app2-anycast.{{ sandbox_domain }}"
 # END DUPLICATED VARS
 
 primary_region: "us-east-2"
