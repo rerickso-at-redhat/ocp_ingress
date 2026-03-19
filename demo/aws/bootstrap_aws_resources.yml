@@ -30,10 +30,11 @@
         security_group: "public-facing-vms"
         image_id: "{{ ami_rhel_10 }}"
 
-    - name: Create a public ip (EIP) for Bastion
+    # TODO: See if we can get the EIP ID when the task fails so we can use a rescue block to delete the EIP
+    - name: Create a public ip (EIP) for Bastion - IF this fails, it doesnt delete the generated EIP and you may need to manually delete it!
       tags: configure_vms
       until: "res_bastion_eip.failed is false"
-      retries: "3"
+      retries: "6"
       delay: "10"
       register: res_bastion_eip
       amazon.aws.ec2_eip:
@@ -193,7 +194,7 @@
     - name: Create a public ip (EIP) for tor-router-bgp
       tags: configure_vms
       until: "res_router_eip.failed is false"
-      retries: "3"
+      retries: "6"
       delay: "10"
       register: res_router_eip
       amazon.aws.ec2_eip:
