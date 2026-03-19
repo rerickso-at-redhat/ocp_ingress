@@ -7,13 +7,14 @@
     - vars.yml
   vars:
     git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
-    git_repo_revision: "main"
+    git_repo_revision: "dev"
     argo_manifests:
       - "app.metallb.yml"
       - "app.gatewayapi.yml"
       - "app.rhsi.yml"
       - "app.app1.yml"
       - "app.app2.yml"
+      - "app.app3.yml"
     argo_values:
       - name: alpha
         argo_path: "{{ clusters[0].argo_path }}"
@@ -110,14 +111,17 @@
       loop:
         - argo_path: "{{ clusters[0].argo_path }}"
           local: true
+          cluster: alpha
         - argo_path: "{{ clusters[1].argo_path }}"
           local: false
+          cluster: beta
       vars:
         app_name: "app1"
         chart_name: "app"
         values_object:
           app:
             local: "{{ item.local }}"
+            cluster: "{{ item.cluster }}"
             namespace: app1
             name: app1
             route:
@@ -134,18 +138,50 @@
       loop:
         - argo_path: "{{ clusters[0].argo_path }}"
           local: false
+          cluster: alpha
         - argo_path: "{{ clusters[1].argo_path }}"
           local: true
+          cluster: beta
       vars:
         app_name: "app2"
         chart_name: "app"
         values_object:
           app:
             local: "{{ item.local }}"
+            cluster: "{{ item.cluster }}"
             namespace: app2
             name: app2
             route:
               host: "app2.apps.beta.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+      ansible.builtin.template:
+        src: "app.argo.yml.j2"
+        mode: "u=rw,g=r,o=r"
+        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
+
+    # APP 3
+    - name: "Create Argo Application Manifests - {{ app_name }}"
+      loop:
+        - argo_path: "{{ clusters[0].argo_path }}"
+          local: true
+          cluster: alpha
+          route_host: "app3.apps.alpha.{{ sandbox_domain }}"
+        - argo_path: "{{ clusters[1].argo_path }}"
+          local: true
+          cluster: beta
+          route_host: "app3.apps.beta.{{ sandbox_domain }}"
+      vars:
+        app_name: "app3"
+        chart_name: "app"
+        values_object:
+          app:
+            local: "{{ item.local }}"
+            cluster: "{{ item.cluster }}"
+            namespace: app3
+            name: app3
+            route:
+              host: "{{ item.route_host }}"
             httproute:
               port: 8080
       ansible.builtin.template:
