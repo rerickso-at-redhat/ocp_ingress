@@ -390,6 +390,7 @@
         mode: "u=rw,g=r,o="
         dest: /etc/sysctl.d/999-forwarding.conf
         # Disabling RP Fitlers may or may not be needed depending on your system
+        # The fix_multipath_hash_policy is used so testing via curl spam on a single client gives unique responses
         content: |
           net.ipv4.conf.all.forwarding=1
           net.ipv6.conf.all.forwarding=1
@@ -399,6 +400,7 @@
           net.ipv4.conf.enX0.rp_filter=1
           net.ipv4.conf.enX1.rp_filter=1
           net.ipv4.conf.enX2.rp_filter=1
+          net.ipv4.fib_multipath_hash_policy=1
 
     - name: "Initialize New sysctl Conf"
       changed_when: "res_sysctl.changed" # noqa: no-handler
@@ -489,7 +491,7 @@
             neighbor {{ third_neighbor_beta_ip }} soft-reconfiguration inbound
             neighbor {{ third_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
             !
-            maximum-paths 6
+            maximum-paths 4
            exit-address-family
           exit
           !
@@ -519,6 +521,8 @@
             ip: "{{ gateways['anycast-gateway-dedicated-app1']['ip'] }}"
           - name: "{{ gateways['anycast-gateway-dedicated-app2']['hostname'] }}"
             ip: "{{ gateways['anycast-gateway-dedicated-app2']['ip'] }}"
+          - name: "{{ gateways['anycast-gateway-dedicated-app3']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app3']['ip'] }}"
       ansible.builtin.template:
         src: "hosts.j2"
         dest: "/etc/hosts"

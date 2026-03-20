@@ -34,7 +34,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            gateways: "{{ [ gateways['anycast-gateway-shared-alpha'], gateways['anycast-gateway-dedicated-app1'] ] }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared-alpha'], gateways['anycast-gateway-dedicated-app1'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
           rhsi:
             subscription:
@@ -57,7 +57,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            gateways: "{{ [ gateways['anycast-gateway-shared-beta'], gateways['anycast-gateway-dedicated-app2'] ] }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared-beta'], gateways['anycast-gateway-dedicated-app2'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
           rhsi:
             subscription:
