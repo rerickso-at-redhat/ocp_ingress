@@ -9,7 +9,7 @@ metadata:
 spec:
   host: {{ .Values.app.route.host }}
   port:
-    targetPort: 8080-tcp
+    targetPort: 8080-listener # Must reference the skupper service port name
   to:
     kind: Service
     name: {{ .Values.app.name }}
