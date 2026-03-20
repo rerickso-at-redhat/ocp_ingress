@@ -18,7 +18,7 @@ data:
             <h1>Hello-App</h1>
             <br>
             <h2>
-            Hello from '{{ .Values.app.name }}' <br>
+            Hello from '{{ .Values.app.name }}' on cluster '{{ .Values.app.cluster }}'<br>
             </h2>
           </body>
       </html>
