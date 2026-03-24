@@ -91,9 +91,11 @@ vim secrets/secrets.yml
 $ aws configure --profile sandboxXYZ
 AWS Access Key ID [None]: Paste AWS_ACCESS_KEY_ID
 AWS Secret Access Key [None]: Paste AWS_SECRET_ACCESS_KEY
-Default region name [None]: ANY
+Default region name [None]: None
 Default output format [None]: ANY
 ```
+
+**NOTE: Keeping the "Default region name: None" ensures the vars.yml is respected and the playbook never falls back to an unintended region in the event of any bugs or sloppy coding.**
 
 2. `cd demo/aws`
 
