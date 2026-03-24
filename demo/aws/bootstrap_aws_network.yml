@@ -28,6 +28,7 @@
       register: res_igw
       amazon.aws.ec2_vpc_igw:
         vpc_id: "{{ res_vpc.vpc.id }}"
+        region: "{{ primary_region }}"
         tags:
           Name: "igw-public"
 
@@ -36,6 +37,7 @@
       register: res_subnets
       amazon.aws.ec2_vpc_subnet:
         vpc_id: "{{ res_vpc.vpc.id }}"
+        region: "{{ primary_region }}"
         az: "{{ item.az }}"
         cidr: "{{ item.cidr }}"
         purge_tags: false
@@ -57,21 +59,26 @@
     - name: "Establish Subnet CIDR Reservations Fact"
       ansible.builtin.set_fact:
         subnet_reservations:
-        # tor
+          # Router - TOR
           - cluster: "tor"
             subnet_id: "{{ subnet_id_tor_private }}"
             cidr: "{{ vpc.dhcp_res_router_bgp_tor_private }}"
             eni_name: "router-bgp-tor-private"
-          # alpha
+          # Router - Alpha
           - cluster: "alpha"
             subnet_id: "{{ subnet_id_alpha_private }}"
             cidr: "{{ vpc.dhcp_res_router_bgp_alpha_private }}"
             eni_name: "router-bgp-alpha-private"
-          # beta
+          # Router - Beta
           - cluster: "beta"
             subnet_id: "{{ subnet_id_beta_private }}"
             cidr: "{{ vpc.dhcp_res_router_bgp_beta_private }}"
             eni_name: "router-bgp-beta-private"
+          # Client - TOR
+          - cluster: "tor"
+            subnet_id: "{{ subnet_id_tor_private }}"
+            cidr: "{{ vpc.dhcp_res_client_tor_private }}"
+            eni_name: "client-tor-private"
 
     # NOTE: A little duplication of get calls (same subnet gathered multiple times) saves effort on the create calls
     - name: "Get Subnet CIDR Reservations"
@@ -79,7 +86,7 @@
       loop: "{{ subnet_reservations }}"
       changed_when: false
       ansible.builtin.command:
-        cmd: "aws ec2 get-subnet-cidr-reservations --subnet-id {{ item.subnet_id }}"
+        cmd: "aws ec2 get-subnet-cidr-reservations --region {{ primary_region }} --subnet-id {{ item.subnet_id }}"
 
     - name: "Create Subnets IPv4 Reservations"
       register: res_reservation
@@ -90,7 +97,7 @@
       when: "(res_reservations.results[i].stdout | from_json).SubnetIpv4CidrReservations | selectattr('Cidr', 'equalto', item.cidr) | length == 0"
       changed_when: true # Only runs when a change is needed
       ansible.builtin.command:
-        cmd: "aws ec2 create-subnet-cidr-reservation --cidr '{{ item.cidr }}' --reservation-type 'explicit' --subnet-id '{{ item.subnet_id }}'"
+        cmd: "aws ec2 create-subnet-cidr-reservation --region {{ primary_region }} --cidr '{{ item.cidr }}' --reservation-type 'explicit' --subnet-id '{{ item.subnet_id }}'"
 
     # Create a NAT Gateway for each availability zone
     # NOTE: AWS accounts are normally limited to 5 elastic ip addresses
@@ -105,6 +112,7 @@
       register: res_ngws
       amazon.aws.ec2_vpc_nat_gateway:
         connectivity_type: "public"
+        region: "{{ primary_region }}"
         subnet_id: "{{ item.id }}"
         if_exist_do_not_create: true
         wait: true
@@ -115,6 +123,7 @@
       loop: "{{ res_ngws['results'] }}"
       when: "item['nat_gateway_addresses'][0]['public_ip'] is defined"
       amazon.aws.ec2_eip:
+        region: "{{ primary_region }}"
         public_ip: "{{ item['nat_gateway_addresses'][0]['public_ip'] }}"
         tags:
           Name: "{{ item['item']['name'] | regex_replace('ngw-', 'eip-ngw-') }}"
@@ -126,6 +135,7 @@
     - name: Initialize VPC Route Tables (publics/internet-gateway)
       register: res_rtb_publics
       amazon.aws.ec2_vpc_route_table:
+        region: "{{ primary_region }}"
         vpc_id: "{{ res_vpc.vpc.id }}"
         subnets:
           - "{{ subnet_id_tor_public }}"
@@ -151,6 +161,7 @@
           name: beta-private-ngw
           index: 2
       amazon.aws.ec2_vpc_route_table:
+        region: "{{ primary_region }}"
         vpc_id: "{{ res_vpc.vpc.id }}"
         subnets:
           - "{{ item.subnet_id }}"
@@ -176,6 +187,7 @@
       amazon.aws.ec2_security_group:
         name: "public-facing-vms"
         description: "Public facing VMs that need SSH access"
+        region: "{{ primary_region }}"
         vpc_id: "{{ res_vpc.vpc.id }}"
         rules:
           - proto: icmp
@@ -194,6 +206,7 @@
       amazon.aws.ec2_security_group:
         name: "private-facing-vms"
         description: "Private facing VMs that need SSH access"
+        region: "{{ primary_region }}"
         vpc_id: "{{ res_vpc.vpc.id }}"
         rules:
           - proto: icmp

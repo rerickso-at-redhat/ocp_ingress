@@ -87,6 +87,7 @@ vpc:
       az: us-east-2a
     ## ANYCAST (Supernet: 10.0.192.0/18)
     # Reserved
+  dhcp_res_client_tor_private: "10.0.0.101/32"
   dhcp_res_router_bgp_tor_private: "10.0.0.96/32"
   dhcp_res_router_bgp_alpha_private: "10.1.0.96/32"
   dhcp_res_router_bgp_beta_private: "10.2.0.96/32"
