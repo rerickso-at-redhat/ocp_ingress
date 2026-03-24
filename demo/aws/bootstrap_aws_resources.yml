@@ -10,6 +10,7 @@
     - name: "Get all EIPs"
       register: res_eips
       amazon.aws.ec2_eip_info:
+        region: "{{ primary_region }}"
 
     - name: "Set Bastion EIP"
       when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion')"
@@ -23,6 +24,7 @@
 
     - name: Initialize The Demo SSH Key
       amazon.aws.ec2_key:
+        region: "{{ primary_region }}"
         name: key-aws-demo
       register: res_key
 
@@ -39,6 +41,7 @@
       amazon.aws.ec2_instance:
         name: "tor-bastion"
         key_name: "key-aws-demo"
+        region: "{{ primary_region }}"
         vpc_subnet_id: "{{ subnet_id_tor_public }}"
         instance_type: "t2.small"
         security_group: "public-facing-vms"
@@ -50,6 +53,7 @@
       when: "not eip_bastion is defined"
       amazon.aws.ec2_eip:
         state: present
+        region: "{{ primary_region }}"
         tags:
           Name: "eip-ec2-bastion"
 
@@ -68,6 +72,7 @@
           delay: "10"
           register: res_bastion_associate_eip
           amazon.aws.ec2_eip:
+            region: "{{ primary_region }}"
             device_id: "{{ res_bastion.instance_ids[0] }}"
             public_ip: "{{ eip_bastion }}"
       rescue:
@@ -75,6 +80,7 @@
           tags: configure_vms
           amazon.aws.ec2_eip:
             state: absent
+            region: "{{ primary_region }}"
             public_ip: "{{ eip_bastion }}"
 
         - name: "FAILED TO ASSOCIATE EIP FOR BASTION"
@@ -85,6 +91,7 @@
       amazon.aws.ec2_security_group:
         name: "tor-bgp-peering"
         description: "TOR-side BGP Peering"
+        region: "{{ primary_region }}"
         vpc_id: "{{ res_vpc.vpc.id }}"
         rules:
           - proto: icmp
@@ -122,6 +129,7 @@
         - configure_vms
       register: res_security_groups
       amazon.aws.ec2_security_group_info:
+        region: "{{ primary_region }}"
 
     # NOTE: Extremely permissive security group rules for lab purposes (moving bgp connections around easily w/o changing SGs)
     - name: "Edit Existing '-node-' Security Groups For BGP (tcp 179) and BFD (udp 3784/3785)"
@@ -129,6 +137,7 @@
       amazon.aws.ec2_security_group:
         name: "{{ item.group_name }}"
         description: "{{ item.description }}"
+        region: "{{ primary_region }}"
         vpc_id: "{{ item.vpc_id }}"
         purge_rules: false
         purge_rules_egress: false
@@ -176,6 +185,7 @@
       loop: "{{ subnet_reservations }}"
       amazon.aws.ec2_eni:
         private_ip_address: "{{ item.cidr.split('/')[0] }}"
+        region: "{{ primary_region }}"
         subnet_id: "{{ item.subnet_id }}"
         # TOR gets the manually built security group only
         # Alpha gets the alpha node security group only
@@ -188,21 +198,42 @@
         tags:
           Name: "{{ item.eni_name }}"
 
+    - name: "Create The Client Network Interface Based On Its IPv4 Reservation"
+      tags: configure_vms
+      register: res_eni_client
+      vars:
+        reservation: "{{ subnet_reservations[3] }}"
+      amazon.aws.ec2_eni:
+        private_ip_address: "{{ reservation.cidr.split('/')[0] }}"
+        region: "{{ primary_region }}"
+        subnet_id: "{{ reservation.subnet_id }}"
+        security_groups:
+          - "private-facing-vms"
+        tags:
+          Name: "{{ reservation.eni_name }}"
+
     - name: Initialize the client ec2 instance
       tags: configure_vms
       register: ec2_client
+      until: "ec2_client.failed is false"
+      retries: 12
+      delay: 5
       amazon.aws.ec2_instance:
         name: "tor-client"
         key_name: "key-aws-demo"
+        region: "{{ primary_region }}"
         vpc_subnet_id: "{{ subnet_id_tor_private }}"
         instance_type: "t2.small"
         image_id: "{{ ami_rhel_10 }}"
-        security_group: "private-facing-vms"
+        network_interfaces_ids:
+          - id: "{{ res_eni_client.interface.id }}"
+            device_index: 0
 
     - name: "Get EC2 Instances"
       tags: configure_vms
       register: res_ec2_instances
       amazon.aws.ec2_instance_info:
+        region: "{{ primary_region }}"
 
     - name: "Get Worker Instances"
       tags: configure_vms
@@ -215,10 +246,11 @@
       amazon.aws.ec2_instance:
         name: "tor-router-bgp"
         key_name: "key-aws-demo"
+        region: "{{ primary_region }}"
         vpc_subnet_id: "{{ subnet_id_tor_private }}"
         instance_type: "t2.medium"
         image_id: "{{ ami_rhel_10 }}"
-        # NOTE: Aweful hard coded indices - 0-2 b/c "subnet_reservations" is 0-2 (tor, alpha, beta)
+        # NOTE: Aweful hard coded indices - 0-2 b/c "subnet_reservations" is 0-2 (router tor, alpha, beta), 3 (client tor)
         network_interfaces_ids:
           # TOR AZ 1
           - id: "{{ res_enis.results[0].interface.id }}"
@@ -236,6 +268,7 @@
       when: "not eip_router is defined"
       amazon.aws.ec2_eip:
         state: present
+        region: "{{ primary_region }}"
         tags:
           Name: "eip-ec2-router"
 
@@ -253,6 +286,7 @@
           delay: "10"
           register: res_router_associate_eip
           amazon.aws.ec2_eip:
+            region: "{{ primary_region }}"
             in_vpc: true
             device_id: "{{ res_enis.results[0].interface.id }}"
             public_ip: "{{ eip_router }}"
@@ -261,6 +295,7 @@
           tags: configure_vms
           amazon.aws.ec2_eip:
             state: absent
+            region: "{{ primary_region }}"
             public_ip: "{{ eip_router }}"
 
         - name: "FAILED TO ASSOCIATE EIP FOR ROUTER"
@@ -333,6 +368,7 @@
     - name: "Get EC2 Instances"
       register: res_ec2_instances
       amazon.aws.ec2_instance_info:
+        region: "{{ primary_region }}"
 
     - name: "Get Worker Instances"
       ansible.builtin.set_fact:
@@ -345,7 +381,7 @@
       changed_when: true # currently always runs
       ansible.builtin.command:
         cmd: |
-          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
+          aws ec2 modify-network-interface-attribute --region {{ primary_region }} --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
 
     - name: "Disable 'source/destination checking' For Each Router and Client Interface"
       loop:
@@ -356,7 +392,7 @@
       changed_when: true # currently always runs
       ansible.builtin.command:
         cmd: |
-          aws ec2 modify-network-interface-attribute --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
+          aws ec2 modify-network-interface-attribute --region {{ primary_region }} --network-interface-id '{{ item }}' --source-dest-check '{"Value":false}'
 
 # NOTE: Currently this play is stuck in this playbook due to add_host dependency from previous play
 - name: "Configure the BGP Router VM"
