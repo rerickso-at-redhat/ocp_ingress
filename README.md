@@ -2,14 +2,6 @@
 
 There are many ways to install each prerequisite, from package managers to Ansible Execution Environments. Feel free to research/install/configure each as appropriate for your needs.
 
-## `aws`
-
-https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-
-```
-dnf install -y awscli2 || apt install -y awscli
-```
-
 ## `ansible`
 
 https://docs.ansible.com/projects/ansible/latest/installation_guide/index.html
@@ -18,16 +10,44 @@ https://docs.ansible.com/projects/ansible/latest/installation_guide/index.html
 dnf install -y ansible || apt install -y ansible
 ```
 
-You must also ensure `boto3 >= 1.34.0` and `botocore >= 1.34.0` are available in your python environment for the Ansible AWS modules to function.
+## Ansible Collections
+
+The following Ansible collections are required:
+    - amazon.aws
+    - kubernetes.core
 
 ```
-pip3 install boto3 botocore
+$ ansible-galaxy collection install amazon.aws kubernetes.core
+```
+
+## Ansible Python Dependencies
+
+The following python packages are required in Ansible's python environment for the Ansible AWS and Kubernetes modules to function:
+    - `boto3 >= 1.34.0`
+    - `botocore >= 1.34.0`
+    - `kubernetes >= 24.2.0`
+    - `pyyaml >= 3.11`
+    - `jsonpatch`
+
+```
+$ pip3 install boto3>=1.34.0 botocore>=1.34.0 kubernetes>=24.2.0 pyyaml>=3.11 jsonpatch
 ```
 
 ```
-$ pip3 freeze | grep boto
-boto3==1.42.47
-botocore==1.42.47
+$ pip3 freeze | grep -i -e boto -e kubernetes -e pyyaml -e jsonpatch
+boto3==1.42.56
+botocore==1.42.56
+jsonpatch==1.33
+kubernetes==34.1.0
+PyYAML==6.0.2
+```
+
+## `aws`
+
+https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+```
+dnf install -y awscli2 || apt install -y awscli
 ```
 
 ## `openshift-install` and `oc`
