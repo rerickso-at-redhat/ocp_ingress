@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metallb-skupper-healthchecks
+  namespace: metallb-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metallb-skupper-healthchecks-role
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["skupper.io"]
+  resources: ["sites"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metallb-skupper-healthchecks-rolebinding
+  namespace: metallb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metallb-skupper-healthchecks-role
+subjects:
+- kind: ServiceAccount
+  name: metallb-skupper-healthchecks
+  namespace: metallb-system
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metallb-skupper-healthchecks-script
+  namespace: metallb-system
+data:
+  "healthcheck.sh": |-
+    #!/bin/bash
+
+    STATE="GOOD"
+
+    while true; do
+
+      APP1=$(oc get site -n app1 app1 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP2=$(oc get site -n app2 app2 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP3=$(oc get site -n app3 app3 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+
+      if [ "$APP1" == "True" ] && [ "$APP2" == "True" ] && [ "$APP3" == "True" ]; then
+        if [ "$STATE" == "GOOD" ]; then
+          echo .;
+        else
+          echo "HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
+          oc label nodes -l node-role.kubernetes.io/worker network.status/skupper-ready=true --overwrite | grep -ve ".* not labeled";
+          STATE="GOOD";
+        fi
+      else
+        echo "{ \"status\": { \"APP1\": \"$APP1\", \"APP2\": \"$APP2\", \"APP3\": \"$APP3\" } }";
+        echo "HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
+        oc label nodes -l node-role.kubernetes.io/worker network.status/skupper-ready=false --overwrite | grep -ve ".*not labeled";
+        STATE="BAD";
+      fi
+
+      sleep 1;
+
+    done
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: metallb-skupper-healthchecks
+  namespace: metallb-system
+spec:
+  serviceAccountName: metallb-skupper-healthchecks
+  containers:
+    - name: healthcheck
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - /app/healthcheck.sh
+      volumeMounts:
+        - mountPath: /app
+          name: healthcheck-script
+  volumes:
+    - name: healthcheck-script
+      configMap:
+        defaultMode: 493
+        name: metallb-skupper-healthchecks-script
