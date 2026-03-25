@@ -42,7 +42,7 @@ data:
   "healthcheck.sh": |-
     #!/bin/bash
 
-    STATE="GOOD"
+    STATE=""
 
     while true; do
 
