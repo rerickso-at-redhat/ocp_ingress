@@ -16,5 +16,5 @@ spec:
   - {{ .name }}
   {{- end }}
   nodeSelector:
-    matchLabels:
-      network.status/skupper-ready: "true"
+    - matchLabels:
+        network.status/skupper-ready: "true"
