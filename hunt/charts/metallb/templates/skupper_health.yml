@@ -69,27 +69,69 @@ data:
 
     done
 
+#---
+#apiVersion: v1
+#kind: Pod
+#metadata:
+#  name: metallb-skupper-healthchecks
+#  namespace: metallb-system
+#spec:
+#  serviceAccountName: metallb-skupper-healthchecks
+#  containers:
+#    - name: healthcheck
+#      image: image-registry.openshift-image-registry.svc:5000/openshift/cli
+#      command:
+#        - /bin/bash
+#      args:
+#        - -c
+#        - /app/healthcheck.sh
+#      volumeMounts:
+#        - mountPath: /app
+#          name: healthcheck-script
+#  volumes:
+#    - name: healthcheck-script
+#      configMap:
+#        defaultMode: 493
+#        name: metallb-skupper-healthchecks-script
+
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: metallb-skupper-healthchecks
   namespace: metallb-system
 spec:
-  serviceAccountName: metallb-skupper-healthchecks
-  containers:
-    - name: healthcheck
-      image: image-registry.openshift-image-registry.svc:5000/openshift/cli
-      command:
-        - /bin/bash
-      args:
-        - -c
-        - /app/healthcheck.sh
-      volumeMounts:
-        - mountPath: /app
-          name: healthcheck-script
-  volumes:
-    - name: healthcheck-script
-      configMap:
-        defaultMode: 493
-        name: metallb-skupper-healthchecks-script
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: metallb-skupper-healthchecks
+  template:
+    metadata:
+      labels:
+        app: metallb-skupper-healthchecks
+      name: metallb-skupper-healthchecks
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: metallb-skupper-healthchecks
+      containers:
+        - name: healthcheck
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /app/healthcheck.sh
+          volumeMounts:
+            - mountPath: /app
+              name: healthcheck-script
+      volumes:
+        - name: healthcheck-script
+          configMap:
+            defaultMode: 493
+            name: metallb-skupper-healthchecks-script
+    
+
