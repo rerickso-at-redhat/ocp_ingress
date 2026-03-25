@@ -7,7 +7,7 @@
     - vars.yml
   vars:
     git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
-    git_repo_revision: "dev"
+    git_repo_revision: "healthchecks"
     argo_manifests:
       - "app.metallb.yml"
       - "app.gatewayapi.yml"
