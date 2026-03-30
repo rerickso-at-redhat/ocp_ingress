@@ -69,31 +69,6 @@ data:
 
     done
 
-#---
-#apiVersion: v1
-#kind: Pod
-#metadata:
-#  name: metallb-skupper-healthchecks
-#  namespace: metallb-system
-#spec:
-#  serviceAccountName: metallb-skupper-healthchecks
-#  containers:
-#    - name: healthcheck
-#      image: image-registry.openshift-image-registry.svc:5000/openshift/cli
-#      command:
-#        - /bin/bash
-#      args:
-#        - -c
-#        - /app/healthcheck.sh
-#      volumeMounts:
-#        - mountPath: /app
-#          name: healthcheck-script
-#  volumes:
-#    - name: healthcheck-script
-#      configMap:
-#        defaultMode: 493
-#        name: metallb-skupper-healthchecks-script
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -133,5 +108,4 @@ spec:
           configMap:
             defaultMode: 493
             name: metallb-skupper-healthchecks-script
-    
 
