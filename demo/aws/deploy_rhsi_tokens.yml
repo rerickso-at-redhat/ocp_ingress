@@ -43,6 +43,9 @@
             - cluster: "beta"
               app: "app2"
               kubeconfig: "{{ clusters[1].kubeconfig_path }}"
+            - cluster: "beta"
+              app: "app3"
+              kubeconfig: "{{ clusters[1].kubeconfig_path }}"
           ansible.builtin.command:
             cmd: "skupper --kubeconfig={{ item.kubeconfig }} --context {{ skupper_context }} --namespace={{ item.app }} token issue secrets/{{ item.app }}-token.yml"
             creates: "secrets/{{ item.app }}-token.yml"
@@ -58,6 +61,9 @@
             - cluster: "beta"
               app: "app2"
               kubeconfig: "{{ clusters[0].kubeconfig_path }}"
+            - cluster: "beta"
+              app: "app3"
+              kubeconfig: "{{ clusters[0].kubeconfig_path }}"
           ansible.builtin.command:
             cmd: "skupper --kubeconfig={{ item.kubeconfig }} --context {{ skupper_context }} --namespace={{ item.app }} token redeem secrets/{{ item.app }}-token.yml"
 
@@ -67,6 +73,7 @@
           loop:
             - "app1"
             - "app2"
+            - "app3"
           ansible.builtin.file:
             state: absent
             path: "secrets/{{ item }}-token.yml"
