@@ -8,16 +8,19 @@
     - "{{ playbook_dir }}/ocp/{{ sandbox_domain }}/generated_facts.yml"
   tasks:
     - name: "Get all EIPs"
+      tags: configure_vms
       register: res_eips
       amazon.aws.ec2_eip_info:
         region: "{{ primary_region }}"
 
     - name: "Set Bastion EIP"
+      tags: configure_vms
       when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion')"
       set_fact:
         eip_bastion: "{{ (res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion') | first).public_ip }}"
 
     - name: "Set Router EIP"
+      tags: configure_vms
       when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-router')"
       set_fact:
         eip_router: "{{ (res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-router') | first).public_ip }}"
@@ -590,7 +593,12 @@
         - "res_route.rc == 0"
         - "'File exists' not in res_route.stderr"
       ansible.builtin.command:
-        cmd: "ip route add {{ supernet_anycast }} via {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }}"
+        cmd: "nmcli connection modify \"cloud-init enX0\" +ipv4.routes \"{{ supernet_anycast }} {{ vpc.dhcp_res_router_bgp_tor_private.split('/')[0] }} 100\""
+
+    - name: "Update The Static Route Connection"
+      when: res_route.changed
+      ansible.builtin.command:
+        cmd: "nmcli connection up 'cloud-init enX0'"
 
     - name: "Create Local DNS Entries For Each Gateway"
       vars:
