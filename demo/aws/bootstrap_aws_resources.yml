@@ -530,7 +530,7 @@
             neighbor {{ third_neighbor_beta_ip }} soft-reconfiguration inbound
             neighbor {{ third_neighbor_beta_ip }} route-map ACCEPT_CLUSTERS in
             !
-            maximum-paths 4
+            maximum-paths 6
            exit-address-family
           exit
           !
