@@ -32,6 +32,8 @@ subjects:
   name: metallb-skupper-healthchecks
   namespace: metallb-system
 
+# TODO: Variablize all healthcheck labels/conditions - currently hardcoded
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -42,7 +44,10 @@ data:
   "healthcheck.sh": |-
     #!/bin/bash
 
-    STATE=""
+    STATE_SHARED=""
+    STATE_APP1=""
+    STATE_APP2=""
+    STATE_APP3=""
 
     while true; do
 
@@ -51,18 +56,63 @@ data:
       APP3=$(oc get site -n app3 app3 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
 
       if [ "$APP1" == "True" ] && [ "$APP2" == "True" ] && [ "$APP3" == "True" ]; then
-        if [ "$STATE" == "GOOD" ]; then
+        if [ "$STATE_SHARED" == "GOOD" ]; then
           echo .;
         else
-          echo "HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
-          oc label nodes -l node-role.kubernetes.io/worker network.status/skupper-ready=true --overwrite | grep -ve ".* not labeled";
-          STATE="GOOD";
+          echo "SHARED HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
+          oc label nodes -l node-role.kubernetes.io/worker network.status/shared-anycast=true --overwrite | grep -ve ".* not labeled";
+          STATE_SHARED="GOOD";
         fi
       else
         echo "{ \"status\": { \"APP1\": \"$APP1\", \"APP2\": \"$APP2\", \"APP3\": \"$APP3\" } }";
-        echo "HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
-        oc label nodes -l node-role.kubernetes.io/worker network.status/skupper-ready=false --overwrite | grep -ve ".*not labeled";
-        STATE="BAD";
+        echo "SHARED HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
+        oc label nodes -l node-role.kubernetes.io/worker network.status/shared-anycast=false --overwrite | grep -ve ".*not labeled";
+        STATE_SHARED="BAD";
+      fi
+
+      if [ "$APP1" == "True" ]; then
+        if [ "$STATE_APP1" == "GOOD" ]; then
+          echo .;
+        else
+          echo "DEDICATED APP1 HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
+          oc label nodes -l node-role.kubernetes.io/worker network.status/app1-anycast=true --overwrite | grep -ve ".* not labeled";
+          STATE_APP1="GOOD";
+        fi
+      else
+        echo "{ \"status\": { \"APP1\": \"$APP1\" } }";
+        echo "DEDICATED APP1 HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
+        oc label nodes -l node-role.kubernetes.io/worker network.status/app1-anycast=false --overwrite | grep -ve ".*not labeled";
+        STATE_APP1="BAD";
+      fi
+
+      if [ "$APP2" == "True" ]; then
+        if [ "$STATE_APP2" == "GOOD" ]; then
+          echo .;
+        else
+          echo "DEDICATED APP2 HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
+          oc label nodes -l node-role.kubernetes.io/worker network.status/app2-anycast=true --overwrite | grep -ve ".* not labeled";
+          STATE_APP2="GOOD";
+        fi
+      else
+        echo "{ \"status\": { \"APP2\": \"$APP2\" } }";
+        echo "DEDICATED APP2 HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
+        oc label nodes -l node-role.kubernetes.io/worker network.status/app2-anycast=false --overwrite | grep -ve ".*not labeled";
+        STATE_APP2="BAD";
+      fi
+
+      if [ "$APP3" == "True" ]; then
+        if [ "$STATE_APP3" == "GOOD" ]; then
+          echo .;
+        else
+          echo "DEDICATED APP3 HEALTHCHECK PASSED - REMOVING TAINT FROM WORKER NODES ..."
+          oc label nodes -l node-role.kubernetes.io/worker network.status/app3-anycast=true --overwrite | grep -ve ".* not labeled";
+          STATE_APP3="GOOD";
+        fi
+      else
+        echo "{ \"status\": { \"APP3\": \"$APP3\" } }";
+        echo "DEDICATED APP3 HEALTHCHECK FAILED - TAINTING WORKER NODES ...";
+        oc label nodes -l node-role.kubernetes.io/worker network.status/app3-anycast=false --overwrite | grep -ve ".*not labeled";
+        STATE_APP3="BAD";
       fi
 
       sleep 1;

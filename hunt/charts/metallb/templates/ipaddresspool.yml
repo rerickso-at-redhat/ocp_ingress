@@ -1,4 +1,4 @@
-{{- with .Values.metallb.ipaddresspool }}
+{{- range $.Values.metallb.ipaddresspools }}
 ---
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
@@ -9,9 +9,7 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   addresses:
-  {{- range $.Values.metallb.ipaddresspool.addresses }}
-  - {{ . | quote}}
-  {{- end }}
+  - {{ .address | quote}}
   autoAssign: true
-  #avoidBuggyIPs: false
+  avoidBuggyIPs: false
 {{- end }}

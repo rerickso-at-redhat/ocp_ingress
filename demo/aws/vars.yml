@@ -19,20 +19,13 @@ clusters:
 # END DUPLICATED VARS
 
 gateways:
-  anycast-gateway-shared-alpha:
+  # SHARED SUPERNET: 10.255.255.0/25 (10.255.255.10/32-10.255.255.127/32)
+  anycast-gateway-shared:
     name: anycast-gateway-shared
     namespace: anycast-gateways
-    ip: 10.255.255.1
-    hostname: "anycast.{{ sandbox_domain }}"
-    #infra_configmap: anycast-gateway-shared # The name of the configmap to use
-    healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app1"]
-  anycast-gateway-shared-beta:
-    name: anycast-gateway-shared
-    namespace: anycast-gateways
-    ip: 10.255.255.1
-    hostname: "anycast.{{ sandbox_domain }}"
-    #infra_configmap: anycast-gateway-shared # The name of the configmap to use
-    healthcheck_command: ["/bin/sh", "-ec", "curl -fsS http://anycast.{{ sandbox_domain }}/app2"]
+    ip: 10.255.255.10
+    hostname: "shared-anycast.{{ sandbox_domain }}"
+  # DEDICATED SUPERNET: 10.255.255.128/25
   anycast-gateway-dedicated-app1:
     name: anycast-gateway-dedicated-app1
     namespace: anycast-gateways

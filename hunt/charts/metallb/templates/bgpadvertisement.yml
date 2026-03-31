@@ -1,8 +1,9 @@
+{{- range $.Values.metallb.ipaddresspools }}
 ---
 apiVersion: metallb.io/v1beta1
 kind: BGPAdvertisement
 metadata:
-  name: anycast-advert
+  name: {{ .name }}-advert
   namespace: metallb-system
   annotations:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -10,11 +11,12 @@ spec:
   aggregationLength: 32
   aggregationLengthV6: 128
   ipAddressPools:
-  - anycast-address-pool
+  - {{ .name }}
   peers:
   {{- range $.Values.metallb.bgppeers }}
   - {{ .name }}
   {{- end }}
   nodeSelectors:
     - matchLabels:
-        network.status/skupper-ready: "true"
+        {{ .health_label | quote }}: "true"
+{{- end }}

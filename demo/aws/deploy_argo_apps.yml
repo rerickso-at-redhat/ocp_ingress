@@ -20,10 +20,19 @@
         argo_path: "{{ clusters[0].argo_path }}"
         metallb:
           metallb:
-            ipaddresspool:
-              name: "anycast-address-pool"
-              addresses:
-                - "{{ supernet_anycast }}"
+            ipaddresspools:
+              - name: "shared-anycast-address-pool"
+                address: "{{ gateways['anycast-gateway-shared-alpha'].ip }}/32"
+                health_label: "network.status/shared-anycast"
+              - name: "dedicated-app1-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app1'] }}/32"
+                health_label: "network.status/app1-anycast"
+              - name: "dedicated-app2-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app2'] }}/32"
+                health_label: "network.status/app2-anycast"
+              - name: "dedicated-app3-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app3'] }}/32"
+                health_label: "network.status/app3-anycast"
             bgppeers:
               - name: "alpha-us-east-2a"
                 myASN: 65001
@@ -34,7 +43,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            gateways: "{{ [ gateways['anycast-gateway-shared-alpha'], gateways['anycast-gateway-dedicated-app1'], gateways['anycast-gateway-dedicated-app3'] ] }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app1'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
           rhsi:
             subscription:
@@ -43,10 +52,19 @@
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:
           metallb:
-            ipaddresspool:
-              name: "anycast-address-pool"
-              addresses:
-                - "{{ supernet_anycast }}"
+            ipaddresspools:
+              - name: "shared-anycast-address-pool"
+                address: "{{ gateways['anycast-gateway-shared-alpha'].ip }}/32"
+                health_label: "network.status/shared-anycast"
+              - name: "dedicated-app1-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app1'] }}/32"
+                health_label: "network.status/app1-anycast"
+              - name: "dedicated-app2-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app2'] }}/32"
+                health_label: "network.status/app2-anycast"
+              - name: "dedicated-app3-address-pool"
+                address: "{{ gateways['anycast-gateway-dedicated-app3'] }}/32"
+                health_label: "network.status/app3-anycast"
             bgppeers:
               - name: "beta-us-east-2a"
                 myASN: 65002
@@ -57,7 +75,7 @@
             namespace: "anycast-gateways"
             subscription:
               channel: stable
-            gateways: "{{ [ gateways['anycast-gateway-shared-beta'], gateways['anycast-gateway-dedicated-app2'], gateways['anycast-gateway-dedicated-app3'] ] }}"
+            gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app2'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
           rhsi:
             subscription:
