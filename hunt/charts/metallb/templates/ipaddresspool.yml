@@ -29,6 +29,6 @@ metadata:
 spec:
   addresses:
   - {{ .address | quote}}
-  autoAssign: true
+  autoAssign: false 
   avoidBuggyIPs: false
 {{- end }}
