@@ -1,4 +1,4 @@
-{{- range $.Values.metallb.ipaddresspools }}
+{{- range $.Values.metallb.static_ipaddresspools }}
 ---
 apiVersion: metallb.io/v1beta1
 kind: BGPAdvertisement

@@ -11,7 +11,7 @@ spec:
   gatewayClassName: openshift-default
   addresses:
     - type: IPAddress
-      value: {{ .ip}}
+      value: {{ .ip }}
   listeners:
   - name: http
     port: 80

@@ -19,27 +19,27 @@ clusters:
 # END DUPLICATED VARS
 
 gateways:
-  # SHARED SUPERNET: 10.255.255.0/25 (10.255.255.10/32-10.255.255.127/32)
+  # DYNAMIC SUPERNET: 10.255.255.0/25
+  # STATIC SUPERNET: 10.255.255.128/25
   anycast-gateway-shared:
     name: anycast-gateway-shared
     namespace: anycast-gateways
     ip: 10.255.255.10
     hostname: "shared-anycast.{{ sandbox_domain }}"
-  # DEDICATED SUPERNET: 10.255.255.128/25
   anycast-gateway-dedicated-app1:
     name: anycast-gateway-dedicated-app1
     namespace: anycast-gateways
-    ip: 10.255.255.11
+    ip: 10.255.255.1
     hostname: "app1-anycast.{{ sandbox_domain }}"
   anycast-gateway-dedicated-app2:
     name: anycast-gateway-dedicated-app2
     namespace: anycast-gateways
-    ip: 10.255.255.12
+    ip: 10.255.255.2
     hostname: "app2-anycast.{{ sandbox_domain }}"
   anycast-gateway-dedicated-app3:
     name: anycast-gateway-dedicated-app3
     namespace: anycast-gateways
-    ip: 10.255.255.13
+    ip: 10.255.255.3
     hostname: "app3-anycast.{{ sandbox_domain }}"
 
 primary_region: "us-east-2"

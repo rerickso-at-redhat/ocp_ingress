@@ -20,18 +20,23 @@
         argo_path: "{{ clusters[0].argo_path }}"
         metallb:
           metallb:
-            ipaddresspools:
+            dynamic_ipaddresspool:
+              # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
+              name: "dynamic-anycast-address-pool"
+              address: "{{ supernet_anycast | replace('.0/24', '.128/25') }}"
+            static_ipaddresspools:
+              # STATIC ADDRESS POOLS - SUPERNET: 10.255.255.0/25
               - name: "shared-anycast-address-pool"
-                address: "{{ gateways['anycast-gateway-shared-alpha'].ip }}/32"
+                address: "{{ gateways['anycast-gateway-shared'].ip }}/32"
                 health_label: "network.status/shared-anycast"
               - name: "dedicated-app1-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app1'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app1'].ip }}/32"
                 health_label: "network.status/app1-anycast"
               - name: "dedicated-app2-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app2'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app2'].ip }}/32"
                 health_label: "network.status/app2-anycast"
               - name: "dedicated-app3-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app3'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app3'].ip }}/32"
                 health_label: "network.status/app3-anycast"
             bgppeers:
               - name: "alpha-us-east-2a"
@@ -52,18 +57,23 @@
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:
           metallb:
-            ipaddresspools:
+            dynamic_ipaddresspool:
+              # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
+              name: "dynamic-anycast-address-pool"
+              address: "{{ supernet_anycast | replace('.0/24', '.128/25') }}"
+            static_ipaddresspools:
+              # STATIC ADDRESS POOLS - SUPERNET: 10.255.255.0/25
               - name: "shared-anycast-address-pool"
-                address: "{{ gateways['anycast-gateway-shared-alpha'].ip }}/32"
+                address: "{{ gateways['anycast-gateway-shared'].ip }}/32"
                 health_label: "network.status/shared-anycast"
               - name: "dedicated-app1-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app1'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app1'].ip }}/32"
                 health_label: "network.status/app1-anycast"
               - name: "dedicated-app2-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app2'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app2'].ip }}/32"
                 health_label: "network.status/app2-anycast"
               - name: "dedicated-app3-address-pool"
-                address: "{{ gateways['anycast-gateway-dedicated-app3'] }}/32"
+                address: "{{ gateways['anycast-gateway-dedicated-app3'].ip }}/32"
                 health_label: "network.status/app3-anycast"
             bgppeers:
               - name: "beta-us-east-2a"

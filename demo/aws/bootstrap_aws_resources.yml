@@ -554,8 +554,8 @@
     - name: "Create Local DNS Entries For Each Gateway"
       vars:
         etc_hosts:
-          - name: "{{ gateways['anycast-gateway-shared-alpha']['hostname'] }}" # alpha & beta have the same IP
-            ip: "{{ gateways['anycast-gateway-shared-alpha']['ip'] }}" # alpha & beta have the same IP
+          - name: "{{ gateways['anycast-gateway-shared']['hostname'] }}" # alpha & beta have the same IP
+            ip: "{{ gateways['anycast-gateway-shared']['ip'] }}" # alpha & beta have the same IP
           - name: "{{ gateways['anycast-gateway-dedicated-app1']['hostname'] }}"
             ip: "{{ gateways['anycast-gateway-dedicated-app1']['ip'] }}"
           - name: "{{ gateways['anycast-gateway-dedicated-app2']['hostname'] }}"
@@ -603,12 +603,14 @@
     - name: "Create Local DNS Entries For Each Gateway"
       vars:
         etc_hosts:
-          - name: "{{ gateways['anycast-gateway-shared-alpha']['hostname'] }}" # alpha & beta have the same IP
-            ip: "{{ gateways['anycast-gateway-shared-alpha']['ip'] }}" # alpha & beta have the same IP
+          - name: "{{ gateways['anycast-gateway-shared']['hostname'] }}" # alpha & beta have the same IP
+            ip: "{{ gateways['anycast-gateway-shared']['ip'] }}" # alpha & beta have the same IP
           - name: "{{ gateways['anycast-gateway-dedicated-app1']['hostname'] }}"
             ip: "{{ gateways['anycast-gateway-dedicated-app1']['ip'] }}"
           - name: "{{ gateways['anycast-gateway-dedicated-app2']['hostname'] }}"
             ip: "{{ gateways['anycast-gateway-dedicated-app2']['ip'] }}"
+          - name: "{{ gateways['anycast-gateway-dedicated-app3']['hostname'] }}"
+            ip: "{{ gateways['anycast-gateway-dedicated-app3']['ip'] }}"
       ansible.builtin.template:
         src: "hosts.j2"
         dest: "/etc/hosts"
