@@ -35,6 +35,8 @@ metadata:
   namespace: {{ .Values.app.namespace }}
 spec:
   linkAccess: default
+  ingres:
+    type: route
 ...
 
 # If the application is not deployed locally, a connector is not required and the site needs linkAccess disabled
@@ -47,5 +49,7 @@ metadata:
   namespace: {{ .Values.app.namespace }}
 spec:
   linkAccess: none 
+  ingres:
+    type: route
 ...
 {{ end }}
