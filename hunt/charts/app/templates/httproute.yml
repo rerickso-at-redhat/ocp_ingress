@@ -28,11 +28,6 @@ spec:
           add:
           - name: x-ingress
             value: {{ .Values.app.cluster }}
-      - type: ResponseHeaderModifier
-        responseHeaderModifier:
-          add:
-          - name: x-egress
-            value: {{ .Values.app.cluster }}
 {{ if .Values.app.local }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
