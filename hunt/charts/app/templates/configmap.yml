@@ -22,4 +22,49 @@ data:
             </h2>
           </body>
       </html>
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: echo-headers-configmap
+  namespace: {{ .Values.app.name }}
+  labels:
+    app.kubernetes.io/instance: echo-headers
+data:
+  "server.py": |-
+    import os
+    from textwrap import dedent
+    import http.server
+    
+    
+    class PathTrackerHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            unknown = "unknown"
+            app = "{{ .Values.app.name }}"
+            ingress = self.headers.get("x-ingress", unknown)
+            egress = self.headers.get("x-egress", unknown)
+    
+            self.send_response(200)
+            self.send_header("x-ingress", self.headers.get("x-ingress, unknown"))
+            self.send_header("x-egress", self.headers.get("x-egress, unknown"))
+            self.send_header("x-app", app)
+            self.end_headers()
+    
+            response_text = dedent(f"""\
+            App: {app}
+            Request Ingress: {ingress}
+            Response Egress: {egress}
+            """)
+    
+            self.wfile.write(response_text.encode("utf-8"))
+    
+    
+    if __name__ == "__main__":
+        port = 8080
+        address = ("0.0.0.0", port)
+        httpd = http.server.HTTPServer(address, PathTrackerHandler)
+        print(f"Starting path-tracker on {address[0]}:{port}...")
+        httpd.serve_forever()
+
 {{ end }}
