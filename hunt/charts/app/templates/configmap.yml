@@ -47,7 +47,6 @@ data:
     
             self.send_response(200)
             self.send_header("x-ingress", self.headers.get("x-ingress, unknown"))
-            self.send_header("x-egress", self.headers.get("x-egress, unknown"))
             self.send_header("x-app", app)
             self.end_headers()
     

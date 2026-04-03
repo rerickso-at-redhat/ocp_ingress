@@ -33,8 +33,6 @@ spec:
           add:
           - name: x-egress
             value: {{ .Values.app.cluster }}
-          - name: x-app
-            value: {{ .Values.app.name }} 
 {{ if .Values.app.local }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
