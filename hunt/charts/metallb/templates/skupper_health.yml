@@ -52,10 +52,16 @@ data:
     while true; do
 
       APP1=$(oc get site -n app1 app1 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP1_LISTENER=$(oc get listener -n app1 app1-listener -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP1_SVC=$(oc get service -n app1 app1 -o jsonpath='{.metadata.name}')
       APP2=$(oc get site -n app2 app2 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP2_LISTENER=$(oc get listener -n app2 app2-listener -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP2_SVC=$(oc get service -n app2 app2 -o jsonpath='{.metadata.name}')
       APP3=$(oc get site -n app3 app3 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP3_LISTENER=$(oc get listener -n app3 app3-listener -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+      APP3_SVC=$(oc get service -n app3 app3 -o jsonpath='{.metadata.name}')
 
-      if [ "$APP1" == "True" ] && [ "$APP2" == "True" ] && [ "$APP3" == "True" ]; then
+      if [ "$APP1" == "True" ] && [ "$APP1_LISTENER" == "True" ] && [ "$APP1_SVC" == "app1" ] && [ "$APP2" == "True" ] && [ "$APP2_LISTENER" == "True" ] && [ "$APP2_SVC" == "app2" ] && [ "$APP3" == "True" ] && [ "$APP3_LISTENER" == "True" ] && [ "$APP3_SVC" == "app3" ]; then
         if [ "$STATE_SHARED" == "GOOD" ]; then
           echo .;
         else
@@ -70,7 +76,7 @@ data:
         STATE_SHARED="BAD";
       fi
 
-      if [ "$APP1" == "True" ]; then
+      if [ "$APP1" == "True" ] && [ "$APP1_LISTENER" == "True" ] && [ "$APP1_SVC" == "app1" ]; then
         if [ "$STATE_APP1" == "GOOD" ]; then
           echo .;
         else
@@ -85,7 +91,7 @@ data:
         STATE_APP1="BAD";
       fi
 
-      if [ "$APP2" == "True" ]; then
+      if [ "$APP2" == "True" ] && [ "$APP2_LISTENER" == "True" ] && [ "$APP2_SVC" == "app2" ]; then
         if [ "$STATE_APP2" == "GOOD" ]; then
           echo .;
         else
@@ -100,7 +106,7 @@ data:
         STATE_APP2="BAD";
       fi
 
-      if [ "$APP3" == "True" ]; then
+      if [ "$APP3" == "True" ] && [ "$APP3_LISTENER" == "True" ] && [ "$APP3_SVC" == "app3" ]; then
         if [ "$STATE_APP3" == "GOOD" ]; then
           echo .;
         else
