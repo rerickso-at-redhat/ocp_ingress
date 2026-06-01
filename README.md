@@ -109,6 +109,9 @@ Required:
 - Your Red Hat Pull Secret (ipi_pull_secret)
 - The Public SSH Key From id_rsa_ocp (ipi_ssh_key)
 
+One way to gather your Pull Secret is to punch the "Download pull secret" button on the Agent-based installer page:
+- https://console.redhat.com/openshift/install/metal/agent-based
+
 ```
 cp secrets/secrets.yml.example secrets/secrets.yml
 vim secrets/secrets.yml
