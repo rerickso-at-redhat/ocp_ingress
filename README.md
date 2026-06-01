@@ -107,10 +107,12 @@ ssh-keygen -f secrets/id_rsa_ocp
 
 Required:
 - Your Red Hat Pull Secret (ipi_pull_secret)
-- The Public SSH Key From id_rsa_ocp (ipi_ssh_key)
+- The Public SSH Key From id_rsa_ocp which you just created above (ipi_ssh_key)
 
 One way to gather your Pull Secret is to punch the "Download pull secret" button on the Agent-based installer page:
 - https://console.redhat.com/openshift/install/metal/agent-based
+
+Finally, you will need to copy the secrets template and update it with your actual pull secret and key values.
 
 ```
 cp secrets/secrets.yml.example secrets/secrets.yml
