@@ -20,7 +20,7 @@
         - name: "Wait For Sites - Alpha"
           changed_when: false
           register: res_sites_alpha
-          until: "res_sites_alpha.stdout | regex_search('app1.*Ready')"
+          until: "res_sites_alpha.stdout | regex_search('app1.*Ready') != None"
           retries: 10
           poll: 30
           ansible.builtin.command:
@@ -29,7 +29,7 @@
         - name: "Wait For Sites - Beta"
           changed_when: false
           register: res_sites_beta
-          until: "res_sites_beta.stdout | regex_search('app2.*Ready')"
+          until: "res_sites_beta.stdout | regex_search('app2.*Ready') != None"
           retries: 10
           poll: 30
           ansible.builtin.command:

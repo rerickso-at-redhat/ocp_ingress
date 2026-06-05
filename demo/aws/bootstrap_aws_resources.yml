@@ -15,14 +15,14 @@
 
     - name: "Set Bastion EIP"
       tags: configure_vms
-      when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion')"
-      set_fact:
+      when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion') | length > 0"
+      ansible.builtin.set_fact:
         eip_bastion: "{{ (res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-bastion') | first).public_ip }}"
 
     - name: "Set Router EIP"
       tags: configure_vms
-      when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-router')"
-      set_fact:
+      when: "res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-router') | length > 0"
+      ansible.builtin.set_fact:
         eip_router: "{{ (res_eips.addresses | selectattr('tags.Name', 'eq', 'eip-ec2-router') | first).public_ip }}"
 
     - name: Initialize The Demo SSH Key
@@ -62,7 +62,7 @@
 
     - name: "Set Bastion EIP"
       when: "eip_bastion is undefined"
-      set_fact:
+      ansible.builtin.set_fact:
         eip_bastion: "{{ res_bastion_eip.public_ip }}"
 
 
@@ -71,8 +71,8 @@
         - name: "Associate a public ip (EIP) for Bastion"
           tags: configure_vms
           until: "res_bastion_associate_eip.failed is false"
-          retries: "12"
-          delay: "10"
+          retries: 12
+          delay: 10
           register: res_bastion_associate_eip
           amazon.aws.ec2_eip:
             region: "{{ primary_region }}"
@@ -277,7 +277,7 @@
 
     - name: "Set Router EIP"
       when: "eip_router is undefined"
-      set_fact:
+      ansible.builtin.set_fact:
         eip_router: "{{ res_router_eip.public_ip }}"
 
     - name: ASSOCIATE EIP
@@ -285,8 +285,8 @@
         - name: "Associate a public ip (EIP) for Router"
           tags: configure_vms
           until: "res_router_associate_eip.failed is false"
-          retries: "12"
-          delay: "10"
+          retries: 12
+          delay: 10
           register: res_router_associate_eip
           amazon.aws.ec2_eip:
             region: "{{ primary_region }}"

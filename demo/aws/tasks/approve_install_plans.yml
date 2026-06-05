@@ -27,12 +27,12 @@
     }}"
 
 - name: "Approving The Following Install Plans"
-  when: "unapproved_ips"
+  when: "unapproved_ips | length > 0"
   ansible.builtin.debug:
     msg: "{{ unapproved_ips }}"
 
 - name: "Approving Install Plans"
-  when: "unapproved_ips"
+  when: "unapproved_ips | length > 0"
   loop: "{{ unapproved_ips }}"
   loop_control:
     loop_var: ip
