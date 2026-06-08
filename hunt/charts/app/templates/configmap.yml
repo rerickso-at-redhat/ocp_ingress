@@ -54,8 +54,8 @@ data:
             self.end_headers()
 
             response_text = dedent(f"""\
-            X-Forwarded-For: {ingress}
-            X-Envoy-External-Address: {ingress}
+            X-Forwarded-For: {xff}
+            X-Envoy-External-Address: {xeea}
             Request Ingress: {ingress}
             App Location: {cluster}
             App: {app}
