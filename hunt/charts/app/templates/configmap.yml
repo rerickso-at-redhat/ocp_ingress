@@ -41,6 +41,8 @@ data:
     class PathTrackerHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             unknown = "unknown"
+            xff = self.headers.get("x-forwarded-for", unknown)
+            xeea = self.headers.get("x-envoy-external-address", unknown)
             ingress = self.headers.get("x-ingress", unknown)
             cluster = "{{ .Values.app.cluster }}"
             app = "{{ .Values.app.name }}"
@@ -52,6 +54,8 @@ data:
             self.end_headers()
 
             response_text = dedent(f"""\
+            X-Forwarded-For: {ingress}
+            X-Envoy-External-Address: {ingress}
             Request Ingress: {ingress}
             App Location: {cluster}
             App: {app}
