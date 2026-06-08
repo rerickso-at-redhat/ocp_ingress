@@ -239,6 +239,7 @@
         kubeconfig: "{{ cluster.kubeconfig_path }}"
         username: "{{ cluster.username }}"
         state: present
+        apply: true
         src: "{{ cluster.argo_path }}/{{ item }}"
 
     - name: "Deploy the Argo App Templates - beta"
@@ -249,6 +250,7 @@
         kubeconfig: "{{ cluster.kubeconfig_path }}"
         username: "{{ cluster.username }}"
         state: present
+        apply: true
         src: "{{ cluster.argo_path }}/{{ item }}"
 
     - name: "Allow A Brief Pause For Argo To Init Apps"
