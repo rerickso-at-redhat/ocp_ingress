@@ -198,3 +198,22 @@ It should be safe to re-run the whole `demo.yml` playbook but if you would like 
 ```
 AWS_PROFILE=sandboxXYZ ansible-playbook -i inventory/clusters.yml demo.yml --tags deploy_argo_apps,approve_install_plans,deploy_rhsi_tokens
 ```
+
+# Documentation Links
+
+## Operators
+
+### MetalLB
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator
+
+### Gateway API
+The Gateway API is built into OCP 4.19+
+
+Creating a GatewayClass CRD will silently bootstrap the Gateway API to allow GatewayClass/Gateway/HTTPRoute objects to be created.
+https://docs.okd.io/latest/networking/ingress_load_balancing/configuring_ingress_cluster_traffic/ingress-gateway-api.html
+
+https://gateway-api.sigs.k8s.io/
+
+### Red Hat Service Interconnect
+https://docs.redhat.com/en/documentation/red_hat_service_interconnect/2.1/html/installation/installing-operator
+
