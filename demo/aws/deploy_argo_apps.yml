@@ -20,6 +20,7 @@
         argo_path: "{{ clusters[0].argo_path }}"
         metallb:
           metallb:
+            cluster: alpha
             dynamic_ipaddresspool:
               # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
               name: "dynamic-anycast-address-pool"
@@ -57,6 +58,7 @@
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:
           metallb:
+            cluster: beta 
             dynamic_ipaddresspool:
               # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
               name: "dynamic-anycast-address-pool"
@@ -140,9 +142,11 @@
         - argo_path: "{{ clusters[0].argo_path }}"
           local: true
           cluster: alpha
+          app: app1
         - argo_path: "{{ clusters[1].argo_path }}"
           local: false
           cluster: beta
+          app: app1
       vars:
         app_name: "app1"
         chart_name: "app"
@@ -150,10 +154,10 @@
           app:
             local: "{{ item.local }}"
             cluster: "{{ item.cluster }}"
-            namespace: app1
-            name: app1
+            namespace: "{{ item.app }}"
+            name: "{{ item.app }}"
             route:
-              host: "app1.apps.alpha.{{ sandbox_domain }}"
+              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
             httproute:
               port: 8080
       ansible.builtin.template:
@@ -167,9 +171,11 @@
         - argo_path: "{{ clusters[0].argo_path }}"
           local: false
           cluster: alpha
+          app: app2
         - argo_path: "{{ clusters[1].argo_path }}"
           local: true
           cluster: beta
+          app: app2
       vars:
         app_name: "app2"
         chart_name: "app"
@@ -177,10 +183,10 @@
           app:
             local: "{{ item.local }}"
             cluster: "{{ item.cluster }}"
-            namespace: app2
-            name: app2
+            namespace: "{{ item.app }}"
+            name: "{{ item.app }}"
             route:
-              host: "app2.apps.beta.{{ sandbox_domain }}"
+              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
             httproute:
               port: 8080
       ansible.builtin.template:
@@ -194,11 +200,11 @@
         - argo_path: "{{ clusters[0].argo_path }}"
           local: true
           cluster: alpha
-          route_host: "app3.apps.alpha.{{ sandbox_domain }}"
+          app: app3
         - argo_path: "{{ clusters[1].argo_path }}"
           local: true
           cluster: beta
-          route_host: "app3.apps.beta.{{ sandbox_domain }}"
+          app: app3
       vars:
         app_name: "app3"
         chart_name: "app"
@@ -206,10 +212,10 @@
           app:
             local: "{{ item.local }}"
             cluster: "{{ item.cluster }}"
-            namespace: app3
-            name: app3
+            namespace: "{{ item.app }}"
+            name: "{{ item.app }}"
             route:
-              host: "{{ item.route_host }}"
+              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
             httproute:
               port: 8080
       ansible.builtin.template:
