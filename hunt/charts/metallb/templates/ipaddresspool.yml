@@ -1,4 +1,5 @@
-{{- with .Values.metallb.ipaddresspool }}
+# DYNAMIC IP ADDRESS POOL
+{{- with .Values.metallb.dynamic_ipaddresspool }}
 ---
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
@@ -9,9 +10,25 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   addresses:
-  {{- range $.Values.metallb.ipaddresspool.addresses }}
-  - {{ . | quote}}
-  {{- end }}
+  - {{ .address | quote}}
   autoAssign: true
-  #avoidBuggyIPs: false
+  avoidBuggyIPs: true
+{{- end }}
+
+
+# STATIC IP ADDRESS POOLS
+{{- range $.Values.metallb.static_ipaddresspools }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .name }}
+  namespace: metallb-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  addresses:
+  - {{ .address | quote}}
+  autoAssign: false 
+  avoidBuggyIPs: false
 {{- end }}

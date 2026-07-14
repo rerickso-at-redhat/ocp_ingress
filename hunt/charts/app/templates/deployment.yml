@@ -26,12 +26,18 @@ spec:
       containers:
       - name: apache
         image: registry.access.redhat.com/ubi10/httpd-24:10.0-1755779646
+        command:
+        - "python3"
+        args:
+        - "/var/www/server/server.py"
         #imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http
           protocol: TCP
         volumeMounts:
+        - mountPath: /var/www/server
+          name: echo-headers-configmap
         - mountPath: /var/www/html
           name: hello-world-configmap
         - mountPath: /tmp
@@ -57,9 +63,33 @@ spec:
             - ALL
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
+
+        # hello-world
+        #livenessProbe:
+        #  httpGet:
+        #    path: /index.html
+        #    port: 8080
+        #    scheme: HTTP
+        #  initialDelaySeconds: 5
+        #  timeoutSeconds: 1
+        #  periodSeconds: 10
+        #  successThreshold: 1
+        #  failureThreshold: 3
+        #readinessProbe:
+        #  httpGet:
+        #    path: /index.html
+        #    port: 8080
+        #    scheme: HTTP
+        #  initialDelaySeconds: 5
+        #  timeoutSeconds: 1
+        #  periodSeconds: 10
+        #  successThreshold: 1
+        #  failureThreshold: 3
+        
+        # echo-headers
         livenessProbe:
           httpGet:
-            path: /index.html
+            path: /
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 5
@@ -67,9 +97,10 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           failureThreshold: 3
+ 
         readinessProbe:
           httpGet:
-            path: /index.html
+            path: /
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 5
@@ -77,7 +108,12 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           failureThreshold: 3
+ 
       volumes:
+      - name: echo-headers-configmap
+        configMap:
+          defaultMode: 438
+          name: echo-headers-configmap
       - name: hello-world-configmap
         configMap:
           defaultMode: 438

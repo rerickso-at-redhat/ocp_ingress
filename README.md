@@ -1,6 +1,6 @@
 # Demo Prerequisites
 
-There are many ways to install each prerequisite, from package managers to Ansible Execution Environments. Feel free to research/install/configure each as appropriate for your needs.
+There are many ways to install each prerequisite, from package managers to Ansible Execution Environments. Feel free to research/install/configure each as appropriate for your needs. By default, this installation will assume you are on an x86 CPU with a Fedora/RHEL OS and you are fine with system-level installs of all dependencies (dnf, pip3, etc).
 
 ## `ansible`
 
@@ -17,7 +17,7 @@ The following Ansible collections are required:
     - kubernetes.core
 
 ```
-$ ansible-galaxy collection install amazon.aws kubernetes.core
+ansible-galaxy collection install amazon.aws kubernetes.core
 ```
 
 ## Ansible Python Dependencies
@@ -30,7 +30,10 @@ The following python packages are required in Ansible's python environment for t
     - `jsonpatch`
 
 ```
-$ pip3 install boto3>=1.34.0 botocore>=1.34.0 kubernetes>=24.2.0 pyyaml>=3.11 jsonpatch
+# Potentially need to install pip3 first
+dnf install -y python3-pip
+
+pip3 install boto3>=1.34.0 botocore>=1.34.0 kubernetes>=24.2.0 pyyaml>=3.11 jsonpatch
 ```
 
 ```
@@ -52,9 +55,17 @@ dnf install -y awscli2 || apt install -y awscli
 
 ## `openshift-install` and `oc`
 
-https://console.redhat.com/openshift/install/metal/agent-based
+The most simple way is to download the `openshift-install` and `oc` binaries directly from the OpenShift mirrors at the link below.
+The current installation is centered around stable-4.20 however you may be able to get away with changing the version (4.19+ required for GA Gateway API).
 
-The most simply way is to download the `openshift-install` and `oc` binaries directly from Red Hat at the link above.
+https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.20/
+
+`openshift-install`:
+- openshift-install-linux.tar.gz
+
+`oc` (rhel 8/9 dependent):
+- openshift-client-linux-amd64-rhel8.tar.gz
+- openshift-client-linux-amd64-rhel9.tar.gz
 
 Where/how you place them is up to you - bins and aliases should both work fine.
 
@@ -96,7 +107,12 @@ ssh-keygen -f secrets/id_rsa_ocp
 
 Required:
 - Your Red Hat Pull Secret (ipi_pull_secret)
-- The Public SSH Key From id_rsa_ocp (ipi_ssh_key)
+- The Public SSH Key From id_rsa_ocp which you just created above (ipi_ssh_key)
+
+One way to gather your Pull Secret is to punch the "Download pull secret" button on the Agent-based installer page:
+- https://console.redhat.com/openshift/install/metal/agent-based
+
+Finally, you will need to copy the secrets template and update it with your actual pull secret and key values.
 
 ```
 cp secrets/secrets.yml.example secrets/secrets.yml
