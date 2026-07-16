@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ingressmesh
+  namespace: openshift-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - name: "{{item.metallb.app_name}}"
+            path: "{{item.metallb.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values: 
+              {{item.metallb.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+
+          - name: "{{item.gatewayapi.app_name}}"
+            path: "{{item.gatewayapi.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values:
+              {{item.gatewayapi.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+
+          - name: "{{item.rhsi.app_name}}"
+            path: "{{item.rhsi.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values:
+              {{item.rhsi.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+
+          - name: "{{item.app1.app_name}}"
+            path: "{{item.app1.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values:
+              {{item.app1.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+
+          - name: "{{item.app2.app_name}}"
+            path: "{{item.app2.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values:
+              {{item.app2.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+
+          - name: "{{item.app3.app_name}}"
+            path: "{{item.app3.app_path}}"
+            targetRevision: "{{git_repo_revision}}"
+            values:
+              {{item.app3.app_values | to_nice_yaml(indent=2) | indent(14)}}
+
+{% raw %}
+  template:
+    metadata:
+      name: "{{.name}}"
+    spec:
+      project: default
+      destination:
+        name: in-cluster
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - managedNamespaceMetadata=true
+          - Replace=true
+          - PruneLast=true
+          - SkipDryRunOnMissingResource=true # Prevents missing CRDs from blocking the entire sync
+        automated:
+          prune: true
+          selfHeal: true
+      source:
+        repoURL: "https://github.com/rerickso-at-redhat/ocp_ingress"
+        targetRevision: "{{.targetRevision}}"
+        path: "{{.path}}"
+        helm:
+          values: |
+            {{.values| toYaml}}
+{% endraw %}

@@ -1,11 +1,11 @@
-{{ if .Values.app.local }}
+{{ if .Values.local }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    application: {{ .Values.app.name }}
-  name: {{ .Values.app.name }}
-  namespace: {{ .Values.app.namespace }}
+    application: {{ .Values.name }}
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
@@ -15,9 +15,9 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}
+        app: {{ .Values.name }}
         deploymentconfig: hello-world
-      name: {{ .Values.app.name }}
+      name: {{ .Values.name }}
     spec:
       securityContext:
         runAsNonRoot: true

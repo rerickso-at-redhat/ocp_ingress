@@ -7,19 +7,16 @@
     - vars.yml
   vars:
     git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
-    git_repo_revision: "main"
+    git_repo_revision: "argo-appset"
     argo_manifests:
-      - "app.metallb.yml"
-      - "app.gatewayapi.yml"
-      - "app.rhsi.yml"
-      - "app.app1.yml"
-      - "app.app2.yml"
-      - "app.app3.yml"
+      - "appset.ingressmesh.yml"
     argo_values:
       - name: alpha
         argo_path: "{{ clusters[0].argo_path }}"
         metallb:
-          metallb:
+          app_name: metallb
+          app_path: "hunt/charts/metallb"
+          app_values:
             cluster: alpha
             dynamic_ipaddresspool:
               # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
@@ -45,19 +42,62 @@
                 peerASN: 65000
                 peerAddress: 10.1.0.96
         gatewayapi:
-          gatewayapi:
+          app_name: gatewayapi 
+          app_path: "hunt/charts/gatewayapi"
+          app_values:
             namespace: "anycast-gateways"
             subscription:
               channel: stable
             gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app1'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
-          rhsi:
+          app_name: rhsi
+          app_path: "hunt/charts/rhsi"
+          app_values:
             subscription:
               channel: "stable-2"
+        app1:
+          app_name: app1
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: alpha
+            local: true
+            namespace: "app1"
+            name: "app1"
+            route:
+              host: "app1.apps.alpha.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+        app2:
+          app_name: app2
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: alpha
+            local: false
+            namespace: "app2"
+            name: "app2"
+            route:
+              host: "app2.apps.alpha.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+        app3:
+          app_name: app3
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: alpha
+            local: true
+            namespace: "app3"
+            name: "app3"
+            route:
+              host: "app3.apps.alpha.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+
       - name: beta
         argo_path: "{{ clusters[1].argo_path }}"
         metallb:
-          metallb:
+          app_name: metallb 
+          app_path: "hunt/charts/metallb"
+          app_values:
             cluster: beta 
             dynamic_ipaddresspool:
               # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
@@ -83,15 +123,56 @@
                 peerASN: 65000
                 peerAddress: 10.2.0.96
         gatewayapi:
-          gatewayapi:
+          app_name: gatewayapi 
+          app_path: "hunt/charts/gatewayapi"
+          app_values:
             namespace: "anycast-gateways"
             subscription:
               channel: stable
             gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app2'], gateways['anycast-gateway-dedicated-app3'] ] }}"
         rhsi:
-          rhsi:
+          app_name: rhsi
+          app_path: "hunt/charts/rhsi"
+          app_values:
             subscription:
               channel: "stable-2"
+        app1:
+          app_name: app1
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: beta 
+            local: true
+            namespace: "app1"
+            name: "app1"
+            route:
+              host: "app1.apps.beta.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+        app2:
+          app_name: app2
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: beta 
+            local: true
+            namespace: "app2"
+            name: "app2"
+            route:
+              host: "app2.apps.beta.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+        app3:
+          app_name: app3
+          app_path: "hunt/charts/app"
+          app_values:
+            cluster: beta 
+            local: false
+            namespace: "app3"
+            name: "app3"
+            route:
+              host: "app3.apps.beta.{{ sandbox_domain }}"
+            httproute:
+              port: 8080
+
   tasks:
     - name: "Create Directories For Each Cluster"
       loop: "{{ clusters }}"
@@ -100,128 +181,12 @@
         path: "{{ item.argo_path }}"
         mode: "0755"
 
-    # MetalLB
-    - name: "Create Argo Application Manifests - {{ app_name }}"
+    - name: "Create Argo ApplicationSet Manifest"
       loop: "{{ argo_values }}"
-      vars:
-        app_name: "metallb"
-        chart_name: "metallb"
-        values_object: "{{ item.metallb }}"
       ansible.builtin.template:
-        src: "app.argo.yml.j2"
+        src: "appset.argo.yml.j2"
         mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
-
-    # Gateway API
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop: "{{ argo_values }}"
-      vars:
-        app_name: "gatewayapi"
-        chart_name: "gatewayapi"
-        values_object: "{{ item.gatewayapi }}"
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
-
-    # RHSI
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop: "{{ argo_values }}"
-      vars:
-        app_name: "rhsi"
-        chart_name: "rhsi"
-        values_object: "{{ item.rhsi }}"
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
-
-    # APP 1
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - argo_path: "{{ clusters[0].argo_path }}"
-          local: true
-          cluster: alpha
-          app: app1
-        - argo_path: "{{ clusters[1].argo_path }}"
-          local: false
-          cluster: beta
-          app: app1
-      vars:
-        app_name: "app1"
-        chart_name: "app"
-        values_object:
-          app:
-            local: "{{ item.local }}"
-            cluster: "{{ item.cluster }}"
-            namespace: "{{ item.app }}"
-            name: "{{ item.app }}"
-            route:
-              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
-            httproute:
-              port: 8080
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
-
-    # APP 2
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - argo_path: "{{ clusters[0].argo_path }}"
-          local: false
-          cluster: alpha
-          app: app2
-        - argo_path: "{{ clusters[1].argo_path }}"
-          local: true
-          cluster: beta
-          app: app2
-      vars:
-        app_name: "app2"
-        chart_name: "app"
-        values_object:
-          app:
-            local: "{{ item.local }}"
-            cluster: "{{ item.cluster }}"
-            namespace: "{{ item.app }}"
-            name: "{{ item.app }}"
-            route:
-              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
-            httproute:
-              port: 8080
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
-
-    # APP 3
-    - name: "Create Argo Application Manifests - {{ app_name }}"
-      loop:
-        - argo_path: "{{ clusters[0].argo_path }}"
-          local: true
-          cluster: alpha
-          app: app3
-        - argo_path: "{{ clusters[1].argo_path }}"
-          local: true
-          cluster: beta
-          app: app3
-      vars:
-        app_name: "app3"
-        chart_name: "app"
-        values_object:
-          app:
-            local: "{{ item.local }}"
-            cluster: "{{ item.cluster }}"
-            namespace: "{{ item.app }}"
-            name: "{{ item.app }}"
-            route:
-              host: "{{ item.app }}.apps.{{ item.cluster }}.{{ sandbox_domain }}"
-            httproute:
-              port: 8080
-      ansible.builtin.template:
-        src: "app.argo.yml.j2"
-        mode: "u=rw,g=r,o=r"
-        dest: "{{ item.argo_path }}/app.{{ app_name }}.yml"
+        dest: "{{ item.argo_path }}/appset.ingressmesh.yml"
 
     - name: "Ensure OpenShift GitOps (Argo) is Available"
       register: res_argo
@@ -237,27 +202,14 @@
       ansible.builtin.pause:
         seconds: 60
 
-    - name: "Deploy the Argo App Templates - alpha"
-      loop: "{{ argo_manifests }}"
-      vars:
-        cluster: "{{ clusters[0] }}"
+    - name: "Deploy the ApplicationSets"
+      loop: "{{ clusters }}"
       kubernetes.core.k8s:
-        kubeconfig: "{{ cluster.kubeconfig_path }}"
-        username: "{{ cluster.username }}"
+        kubeconfig: "{{ item.kubeconfig_path }}"
+        username: "{{ item.username }}"
         state: present
         apply: true
-        src: "{{ cluster.argo_path }}/{{ item }}"
-
-    - name: "Deploy the Argo App Templates - beta"
-      loop: "{{ argo_manifests }}"
-      vars:
-        cluster: "{{ clusters[1] }}"
-      kubernetes.core.k8s:
-        kubeconfig: "{{ cluster.kubeconfig_path }}"
-        username: "{{ cluster.username }}"
-        state: present
-        apply: true
-        src: "{{ cluster.argo_path }}/{{ item }}"
+        src: "{{ item.argo_path }}/appset.ingressmesh.yml"
 
     - name: "Allow A Brief Pause For Argo To Init Apps"
       ansible.builtin.pause:

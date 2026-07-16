@@ -1,5 +1,5 @@
 # DYNAMIC IP ADDRESS POOL
-{{- with .Values.metallb.dynamic_ipaddresspool }}
+{{- with .Values.dynamic_ipaddresspool }}
 ---
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool

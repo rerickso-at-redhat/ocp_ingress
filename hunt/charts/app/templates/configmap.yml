@@ -1,9 +1,9 @@
-{{ if .Values.app.local }}
+{{ if .Values.local }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: hello-world-configmap
-  namespace: {{ .Values.app.name }}
+  namespace: {{ .Values.name }}
   labels:
     app.kubernetes.io/instance: hello-world
 data:
@@ -18,7 +18,7 @@ data:
             <h1>Hello-App</h1>
             <br>
             <h2>
-            Hello from '{{ .Values.app.name }}' on cluster '{{ .Values.app.cluster }}'
+            Hello from '{{ .Values.name }}' on cluster '{{ .Values.cluster }}'
             </h2>
           </body>
       </html>
@@ -28,7 +28,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: echo-headers-configmap
-  namespace: {{ .Values.app.name }}
+  namespace: {{ .Values.name }}
   labels:
     app.kubernetes.io/instance: echo-headers
 data:
@@ -44,8 +44,8 @@ data:
             xff = self.headers.get("x-forwarded-for", unknown)
             xeea = self.headers.get("x-envoy-external-address", unknown)
             ingress = self.headers.get("x-ingress", unknown)
-            cluster = "{{ .Values.app.cluster }}"
-            app = "{{ .Values.app.name }}"
+            cluster = "{{ .Values.cluster }}"
+            app = "{{ .Values.name }}"
 
             self.send_response(200)
             self.send_header("x-ingress", self.headers.get("x-ingress", unknown))

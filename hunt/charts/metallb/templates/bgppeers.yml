@@ -1,4 +1,4 @@
-{{- range $.Values.metallb.bgppeers }}
+{{- range $.Values.bgppeers }}
 ---
 apiVersion: metallb.io/v1beta2
 kind: BGPPeer

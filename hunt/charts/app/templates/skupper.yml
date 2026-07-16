@@ -3,36 +3,36 @@
 apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
-  name: {{ printf "%s-%s-listener" .Values.app.cluster .Values.app.name }}
-  namespace: {{ .Values.app.namespace }}
+  name: {{ printf "%s-%s-listener" .Values.cluster .Values.name }}
+  namespace: {{ .Values.namespace }}
 spec:
-  routingKey: {{ .Values.app.name }}
-  host: {{ .Values.app.name }}
+  routingKey: {{ .Values.name }}
+  host: {{ .Values.name }}
   port: 8080
   type: tcp
 ...
 
 # If the application is deployed locally to the cluster, a connector is required for incoming cross-cluster traffic and the site needs linkAccess (default, route, etc)
-{{ if .Values.app.local }}
+{{ if .Values.local }}
 ---
 apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   generation: 1
-  name: {{ printf "%s-%s" .Values.app.cluster .Values.app.name }}
-  namespace: {{ .Values.app.namespace }}
+  name: {{ printf "%s-%s" .Values.cluster .Values.name }}
+  namespace: {{ .Values.namespace }}
 spec:
   port: 8080
-  routingKey: {{ .Values.app.name }}
-  selector: app={{ .Values.app.name }}
+  routingKey: {{ .Values.name }}
+  selector: app={{ .Values.name }}
   type: tcp
 ...
 ---
 apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
-  name: {{ printf "%s-%s" .Values.app.cluster .Values.app.name }}
-  namespace: {{ .Values.app.namespace }}
+  name: {{ printf "%s-%s" .Values.cluster .Values.name }}
+  namespace: {{ .Values.namespace }}
 spec:
   linkAccess: route 
 ...
@@ -43,8 +43,8 @@ spec:
 apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
-  name: {{ printf "%s-%s" .Values.app.cluster .Values.app.name }}
-  namespace: {{ .Values.app.namespace }}
+  name: {{ printf "%s-%s" .Values.cluster .Values.name }}
+  namespace: {{ .Values.namespace }}
 spec:
   linkAccess: none 
 ...
