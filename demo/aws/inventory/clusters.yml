@@ -3,6 +3,8 @@ clusters:
   vars:
     sandbox_domain: "{{ lookup('ansible.builtin.env', 'AWS_PROFILE') | default('sandboxXYZ') }}.opentlc.com"
     domain_path: "{{ playbook_dir }}/ocp/{{ sandbox_domain }}"
+    git_repo_url: "https://github.com/rerickso-at-redhat/ocp_ingress"
+    git_repo_revision: "main"
   hosts:
     alpha:
       install_config_path: "{{ domain_path }}/alpha.install-config.yaml"
@@ -10,10 +12,167 @@ clusters:
       kubeconfig_path: "{{ domain_path }}/alpha/auth/kubeconfig"
       username: admin
       argo_path: "{{ domain_path }}/alpha/argo"
+      apps:
+        - name: metallb
+          chart_path: "hunt/charts/metallb"
+          helm_values:
+            metallb:
+              cluster: alpha
+              dynamic_ipaddresspool:
+                # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
+                name: "dynamic-anycast-address-pool"
+                address: "{{ supernet_anycast | replace('.0/24', '.128/25') }}"
+              static_ipaddresspools:
+                # STATIC ADDRESS POOLS - SUPERNET: 10.255.255.0/25
+                - name: "shared-anycast-address-pool"
+                  address: "{{ gateways['anycast-gateway-shared'].ip }}/32"
+                  health_label: "network.status/shared-anycast"
+                - name: "dedicated-app1-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app1'].ip }}/32"
+                  health_label: "network.status/app1-anycast"
+                - name: "dedicated-app2-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app2'].ip }}/32"
+                  health_label: "network.status/app2-anycast"
+                - name: "dedicated-app3-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app3'].ip }}/32"
+                  health_label: "network.status/app3-anycast"
+              bgppeers:
+                - name: "alpha-us-east-2a"
+                  myASN: 65001
+                  peerASN: 65000
+                  peerAddress: 10.1.0.96
+        - name: gatewayapi
+          chart_path: "hunt/charts/gatewayapi"
+          helm_values:
+            gatewayapi:
+              namespace: "anycast-gateways"
+              subscription:
+                channel: stable
+              gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app1'], gateways['anycast-gateway-dedicated-app3'] ] }}"
+        - name: rhsi
+          chart_path: "hunt/charts/rhsi"
+          helm_values:
+            rhsi:
+              subscription:
+                channel: "stable-2"
+        - name: app1
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: true
+              cluster: alpha
+              namespace: app1
+              name: app1
+              route:
+                host: "app1.apps.alpha.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
+        - name: app2
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: false
+              cluster: alpha
+              namespace: app2
+              name: app2
+              route:
+                host: "app2.apps.alpha.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
+        - name: app3
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: true
+              cluster: alpha
+              namespace: app3
+              name: app3
+              route:
+                host: "app3.apps.alpha.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
     beta:
       install_config_path: "{{ domain_path }}/beta.install-config.yaml"
       install_path: "{{ domain_path }}/beta"
       kubeconfig_path: "{{ domain_path }}/beta/auth/kubeconfig"
       username: admin
       argo_path: "{{ domain_path }}/beta/argo"
-
+      apps:
+        - name: metallb
+          chart_path: "hunt/charts/metallb"
+          helm_values:
+            metallb:
+              cluster: beta
+              dynamic_ipaddresspool:
+                # DYNAMIC ADDRESS POOL - SUBNET: 10.255.255.128/25
+                name: "dynamic-anycast-address-pool"
+                address: "{{ supernet_anycast | replace('.0/24', '.128/25') }}"
+              static_ipaddresspools:
+                # STATIC ADDRESS POOLS - SUPERNET: 10.255.255.0/25
+                - name: "shared-anycast-address-pool"
+                  address: "{{ gateways['anycast-gateway-shared'].ip }}/32"
+                  health_label: "network.status/shared-anycast"
+                - name: "dedicated-app1-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app1'].ip }}/32"
+                  health_label: "network.status/app1-anycast"
+                - name: "dedicated-app2-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app2'].ip }}/32"
+                  health_label: "network.status/app2-anycast"
+                - name: "dedicated-app3-address-pool"
+                  address: "{{ gateways['anycast-gateway-dedicated-app3'].ip }}/32"
+                  health_label: "network.status/app3-anycast"
+              bgppeers:
+                - name: "beta-us-east-2a"
+                  myASN: 65002
+                  peerASN: 65000
+                  peerAddress: 10.2.0.96
+        - name: gatewayapi
+          chart_path: "hunt/charts/gatewayapi"
+          helm_values:
+            gatewayapi:
+              namespace: "anycast-gateways"
+              subscription:
+                channel: stable
+              gateways: "{{ [ gateways['anycast-gateway-shared'], gateways['anycast-gateway-dedicated-app2'], gateways['anycast-gateway-dedicated-app3'] ] }}"
+        - name: rhsi
+          chart_path: "hunt/charts/rhsi"
+          helm_values:
+            rhsi:
+              subscription:
+                channel: "stable-2"
+        - name: app1
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: false
+              cluster: beta
+              namespace: app1
+              name: app1
+              route:
+                host: "app1.apps.beta.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
+        - name: app2
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: true
+              cluster: beta
+              namespace: app2
+              name: app2
+              route:
+                host: "app2.apps.beta.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
+        - name: app3
+          chart_path: "hunt/charts/app"
+          helm_values:
+            app:
+              local: true
+              cluster: beta
+              namespace: app3
+              name: app3
+              route:
+                host: "app3.apps.beta.{{ sandbox_domain }}"
+              httproute:
+                port: 8080
