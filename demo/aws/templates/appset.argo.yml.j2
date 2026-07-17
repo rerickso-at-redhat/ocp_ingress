@@ -1,0 +1,43 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ingressmesh
+  namespace: openshift-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - list:
+      elements:
+{% for app in apps %}
+      - name: "{{ app.name }}"
+        chartPath: "{{ app.chart_path }}"
+        helmValues:
+{{ app.helm_values | to_nice_yaml(indent=2) | indent(10, true) }}
+{% endfor %}
+  template:
+    metadata:
+      name: '{% raw %}{{ .name }}{% endraw %}'
+      namespace: openshift-gitops
+    spec:
+      project: default
+      destination:
+        name: in-cluster
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - managedNamespaceMetadata=true
+          - Replace=true
+          - PruneLast=true
+          # CRDs from operators (MetalLB, Gateway API, Skupper) may not exist yet when Argo first syncs
+          - SkipDryRunOnMissingResource=true
+        automated:
+          prune: true
+          selfHeal: true
+      source:
+        repoURL: "{{ git_repo_url }}"
+        targetRevision: "{{ git_repo_revision }}"
+        path: '{% raw %}{{ .chartPath }}{% endraw %}'
+        helm:
+          values: '{% raw %}{{ .helmValues | toYaml }}{% endraw %}'
